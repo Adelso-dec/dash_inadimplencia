@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel de Inadimplência | Vendedores & Supervisores</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+  :root{
+    --purple:#480E65;
+    --purple-deep:#2E0742;
+    --purple-soft:#6E2C92;
+    --green:#00FF77;
+    --green-deep:#00C75E;
+    --bg:#F6F4F9;
+    --card:#FFFFFF;
+    --ink:#241433;
+    --ink-soft:#6B6177;
+    --line:#E7E1EE;
+    --danger:#E0445B;
+    --danger-soft:#FCE9EC;
+    --ok-soft:#E4FBEF;
+    --radius:14px;
+    --shadow:0 6px 24px rgba(72,14,101,0.08);
+    --mono:'JetBrains Mono','SF Mono',Consolas,monospace;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+  }
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
+
+  header{
+    background:linear-gradient(120deg,var(--purple-deep) 0%, var(--purple) 55%, var(--purple-soft) 100%);
+    color:#fff;
+    padding:28px 32px 80px;
+    position:relative;
+    overflow:hidden;
+  }
+  header::after{
+    content:"";
+    position:absolute;
+    right:-60px;top:-60px;
+    width:280px;height:280px;
+    border-radius:50%;
+    background:radial-gradient(circle, rgba(0,255,119,0.25), transparent 70%);
+  }
+  .header-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    flex-wrap:wrap;
+    gap:16px;
+    position:relative;
+    z-index:2;
+  }
+  .brand{display:flex;align-items:center;gap:14px;}
+  .brand-mark{
+    width:42px;height:42px;border-radius:10px;
+    background:var(--green);
+    display:flex;align-items:center;justify-content:center;
+    font-weight:800;color:var(--purple-deep);font-size:18px;
+    box-shadow:0 0 0 4px rgba(0,255,119,0.18);
+  }
+  .brand h1{font-size:19px;margin:0;font-weight:700;letter-spacing:0.2px;}
+  .brand span{font-size:12px;color:rgba(255,255,255,0.65);font-weight:500;}
+
+  .upload-zone{
+    display:flex;align-items:center;gap:10px;
+    background:rgba(255,255,255,0.08);
+    border:1px dashed rgba(255,255,255,0.35);
+    padding:10px 16px;border-radius:12px;
+    cursor:pointer;
+    transition:.2s;
+    font-size:13px;
+  }
+  .upload-zone:hover{background:rgba(255,255,255,0.16);border-color:var(--green);}
+  .upload-zone svg{flex-shrink:0;}
+  #fileName{font-weight:600;color:var(--green);}
+
+  main{
+    max-width:1280px;
+    margin:-56px auto 60px;
+    padding:0 24px;
+    position:relative;
+    z-index:3;
+  }
+
+  .kpi-grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:16px;
+    margin-bottom:28px;
+  }
+  .kpi-card{
+    background:var(--card);
+    border-radius:var(--radius);
+    padding:20px 18px;
+    box-shadow:var(--shadow);
+    border:1px solid var(--line);
+    position:relative;
+    overflow:hidden;
+  }
+  .kpi-card .bar{
+    position:absolute;left:0;top:0;bottom:0;width:4px;
+  }
+  .kpi-label{font-size:11.5px;text-transform:uppercase;letter-spacing:0.6px;color:var(--ink-soft);font-weight:700;margin-bottom:8px;}
+  .kpi-value{font-family:var(--mono);font-size:24px;font-weight:700;color:var(--purple-deep);line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .kpi-sub{font-size:12px;color:var(--ink-soft);margin-top:6px;}
+  .kpi-card.green .bar{background:var(--green);}
+  .kpi-card.red .bar{background:var(--danger);}
+  .kpi-card.green .kpi-value{color:var(--green-deep);}
+  .kpi-card.red .kpi-value{color:var(--danger);}
+
+  .filial-card{grid-column:span 5;background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--line);padding:20px 22px;margin-bottom:28px;}
+  .filial-card h3{margin:0 0 14px;font-size:14px;color:var(--purple-deep);text-transform:uppercase;letter-spacing:0.5px;}
+  .filial-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;}
+  .filial-item{
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:12px 14px;
+    background:#FAF8FC;
+  }
+  .filial-item .fi-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+  .filial-item .fi-name{font-weight:700;font-size:13px;color:var(--purple-deep);}
+  .filial-item .fi-pct{font-family:var(--mono);font-weight:700;font-size:13px;}
+  .filial-item .fi-fat{font-family:var(--mono);font-size:12px;color:var(--ink-soft);margin-bottom:6px;}
+  .fi-track{height:6px;border-radius:4px;background:#EDE7F3;overflow:hidden;}
+  .fi-fill{height:100%;border-radius:4px;}
+
+  .panel{
+    background:var(--card);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    border:1px solid var(--line);
+    margin-bottom:28px;
+    overflow:hidden;
+  }
+  .panel-head{
+    padding:18px 22px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:12px;
+    border-bottom:1px solid var(--line);
+  }
+  .panel-head h2{margin:0;font-size:15px;color:var(--purple-deep);font-weight:700;display:flex;align-items:center;gap:8px;}
+  .panel-head h2::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;}
+  .panel-actions{display:flex;gap:8px;flex-wrap:wrap;}
+  .btn{
+    border:none;border-radius:8px;padding:8px 14px;font-size:12.5px;font-weight:600;
+    cursor:pointer;display:flex;align-items:center;gap:6px;transition:.15s;
+  }
+  .btn-xlsx{background:var(--ok-soft);color:#0B7A3E;}
+  .btn-xlsx:hover{background:#cdf6df;}
+  .btn-pdf{background:var(--danger-soft);color:#A8233A;}
+  .btn-pdf:hover{background:#f9d3da;}
+
+  .filters{
+    padding:16px 22px;
+    display:flex;
+    gap:12px;
+    flex-wrap:wrap;
+    background:#FBFAFD;
+    border-bottom:1px solid var(--line);
+  }
+  .filters input, .filters select{
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:8px 12px;
+    font-size:13px;
+    font-family:inherit;
+    background:#fff;
+    color:var(--ink);
+  }
+  .filters input[type="text"]{flex:1;min-width:180px;}
+  .filters select{min-width:170px;}
+  .filters .pct-filter{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink-soft);}
+  .filters .pct-filter input[type="number"]{width:80px;}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  thead th{
+    position:sticky;top:0;
+    background:var(--purple-deep);
+    color:#fff;
+    text-align:left;
+    padding:10px 14px;
+    font-weight:600;
+    font-size:11.5px;
+    text-transform:uppercase;
+    letter-spacing:0.4px;
+    cursor:pointer;
+    user-select:none;
+  }
+  thead th:hover{background:var(--purple);}
+  tbody td{padding:9px 14px;border-bottom:1px solid var(--line);}
+  tbody tr:hover{background:#FAF7FD;}
+  td.num{font-family:var(--mono);text-align:right;}
+  .pct-badge{
+    font-family:var(--mono);font-weight:700;font-size:12px;
+    padding:3px 8px;border-radius:6px;display:inline-block;min-width:54px;text-align:center;
+  }
+  .pct-low{background:var(--ok-soft);color:#0B7A3E;}
+  .pct-mid{background:#FFF3D6;color:#9A6700;}
+  .pct-high{background:var(--danger-soft);color:#A8233A;}
+
+  .table-scroll{max-height:520px;overflow:auto;}
+  .table-meta{padding:10px 22px;font-size:12px;color:var(--ink-soft);border-top:1px solid var(--line);background:#FBFAFD;}
+
+  .empty-state{
+    padding:80px 30px;text-align:center;color:var(--ink-soft);
+  }
+  .empty-state svg{margin-bottom:16px;opacity:0.5;}
+  .empty-state h3{color:var(--purple-deep);margin:0 0 6px;font-size:16px;}
+  .empty-state p{margin:0;font-size:13px;max-width:380px;margin:0 auto;}
+
+  .hidden{display:none !important;}
+
+  @media (max-width: 980px){
+    .kpi-grid{grid-template-columns:repeat(2,1fr);}
+    .filial-card{grid-column:span 2;}
+    header{padding:22px 18px 70px;}
+    main{margin-top:-50px;padding:0 14px;}
+  }
+  @media (max-width: 560px){
+    .kpi-grid{grid-template-columns:1fr;}
+    .filial-card{grid-column:span 1;}
+    .header-top{flex-direction:column;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-top">
+    <div class="brand">
+      <div class="brand-mark">%</div>
+      <div>
+        <h1>Painel de Inadimplência</h1>
+        <span>Vendedores &amp; Supervisores — síntese comercial</span>
+      </div>
+    </div>
+    <label class="upload-zone" id="uploadLabel">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <span id="uploadText">Importar planilha (.xlsx)</span>
+      <span id="fileName"></span>
+      <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none;">
+    </label>
+  </div>
+</header>
+
+<main>
+  <div id="emptyState" class="empty-state panel">
+    <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#480E65" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
+    <h3>Nenhuma planilha carregada</h3>
+    <p>Clique em "Importar planilha (.xlsx)" no topo e selecione o arquivo de inadimplência sintético para gerar o painel.</p>
+  </div>
+
+  <div id="dashboardContent" class="hidden">
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="bar" style="background:var(--purple);"></div>
+        <div class="kpi-label">Faturamento Total</div>
+        <div class="kpi-value" id="kpiFaturamento">R$ 0</div>
+        <div class="kpi-sub" id="kpiFaturamentoSub">—</div>
+      </div>
+      <div class="kpi-card red"><div class="bar"></div>
+        <div class="kpi-label">Inadimplência Total</div>
+        <div class="kpi-value" id="kpiInadimplencia">R$ 0</div>
+        <div class="kpi-sub" id="kpiInadimplenciaSub">—</div>
+      </div>
+      <div class="kpi-card" id="kpiPercCard"><div class="bar" style="background:var(--green);"></div>
+        <div class="kpi-label">% Inadimplência</div>
+        <div class="kpi-value" id="kpiPerc">0%</div>
+        <div class="kpi-sub" id="kpiPercSub">Inadimplência / Faturamento</div>
+      </div>
+      <div class="kpi-card"><div class="bar" style="background:var(--purple-soft);"></div>
+        <div class="kpi-label">Filiais</div>
+        <div class="kpi-value" id="kpiFiliais">0</div>
+        <div class="kpi-sub" id="kpiFiliaisSub">—</div>
+      </div>
+      <div class="kpi-card"><div class="bar" style="background:var(--purple-soft);"></div>
+        <div class="kpi-label">Vendedores</div>
+        <div class="kpi-value" id="kpiVendedores">0</div>
+        <div class="kpi-sub" id="kpiVendedoresSub">—</div>
+      </div>
+
+      <div class="filial-card">
+        <h3>Faturamento &amp; Inadimplência por Filial</h3>
+        <div class="filial-list" id="filialList"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Supervisores</h2>
+        <div class="panel-actions">
+          <button class="btn btn-xlsx" onclick="exportTable('sup','xlsx')">⬇ XLSX</button>
+          <button class="btn btn-pdf" onclick="exportTable('sup','pdf')">⬇ PDF</button>
+        </div>
+      </div>
+      <div class="filters">
+        <input type="text" id="supSearch" placeholder="Filtrar por nome ou código do supervisor...">
+        <div class="pct-filter">
+          % inadimplência entre
+          <input type="number" id="supPctMin" placeholder="0" step="0.1">
+          e
+          <input type="number" id="supPctMax" placeholder="100" step="0.1">
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table id="supTable">
+          <thead><tr>
+            <th data-key="codSup">Cód.</th>
+            <th data-key="nomeSup">Supervisor</th>
+            <th data-key="filial">Filial</th>
+            <th data-key="fat">Faturamento</th>
+            <th data-key="inad">Inadimplência</th>
+            <th data-key="pct">% Inadimpl.</th>
+          </tr></thead>
+          <tbody id="supTbody"></tbody>
+        </table>
+      </div>
+      <div class="table-meta" id="supMeta"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Vendedores</h2>
+        <div class="panel-actions">
+          <button class="btn btn-xlsx" onclick="exportTable('ven','xlsx')">⬇ XLSX</button>
+          <button class="btn btn-pdf" onclick="exportTable('ven','pdf')">⬇ PDF</button>
+        </div>
+      </div>
+      <div class="filters">
+        <input type="text" id="venSearch" placeholder="Filtrar por nome ou código do vendedor...">
+        <select id="venSupFilter"><option value="">Todos os supervisores</option></select>
+        <select id="venFilialFilter"><option value="">Todas as filiais</option></select>
+        <div class="pct-filter">
+          % inadimplência entre
+          <input type="number" id="venPctMin" placeholder="0" step="0.1">
+          e
+          <input type="number" id="venPctMax" placeholder="100" step="0.1">
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table id="venTable">
+          <thead><tr>
+            <th data-key="codVen">Cód.</th>
+            <th data-key="nomeVen">Vendedor</th>
+            <th data-key="supervisor">Supervisor</th>
+            <th data-key="filial">Filial</th>
+            <th data-key="fat">Faturamento</th>
+            <th data-key="inad">Inadimplência</th>
+            <th data-key="pct">% Inadimpl.</th>
+          </tr></thead>
+          <tbody id="venTbody"></tbody>
+        </table>
+      </div>
+      <div class="table-meta" id="venMeta"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+let rawRows = [];
+let vendedores = [];
+let supervisores = [];
+let sortState = {sup:{key:'inad',dir:-1}, ven:{key:'inad',dir:-1}};
+
+const fmtBRL = v => 'R$ ' + (v||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+const fmtPct = v => (v||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) + '%';
+
+function pctClass(p){
+  if(p < 0.5) return 'pct-low';
+  if(p < 1.5) return 'pct-mid';
+  return 'pct-high';
+}
+
+document.getElementById('fileInput').addEventListener('change', handleFile);
+
+function handleFile(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  document.getElementById('fileName').textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = function(evt){
+    const data = new Uint8Array(evt.target.result);
+    const wb = XLSX.read(data, {type:'array'});
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const json = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
+    processRows(json);
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function processRows(json){
+  rawRows = [];
+  for(let i=1;i<json.length;i++){
+    const r = json[i];
+    if(!r || r.every(c=>c===null||c==='')) continue;
+    const filial = String(r[0]??'').trim();
+    const codVen = String(r[1]??'').trim();
+    const nomeVen = String(r[2]??'').trim();
+    const codSup = String(r[3]??'').trim();
+    const nomeSup = String(r[4]??'').trim();
+    const codGr = String(r[5]??'').trim();
+    const gerente = String(r[6]??'').trim();
+    const inad = parseFloat(r[7])||0;       // coluna H
+    const fat = parseFloat(r[8])||0;        // coluna I
+    if(!nomeVen && !codVen) continue;
+    rawRows.push({filial, codVen, nomeVen, codSup, nomeSup, codGr, gerente, inad, fat});
+  }
+  buildVendedores();
+  buildSupervisores();
+  populateVenFilters();
+  renderAll();
+  document.getElementById('emptyState').classList.add('hidden');
+  document.getElementById('dashboardContent').classList.remove('hidden');
+}
+
+function buildVendedores(){
+  vendedores = rawRows.map(r=>({
+    codVen:r.codVen, nomeVen:r.nomeVen, supervisor:r.nomeSup, filial:r.filial,
+    fat:r.fat, inad:r.inad, pct: r.fat>0 ? (r.inad/r.fat*100) : 0
+  }));
+}
+
+function populateVenFilters(){
+  const supSel = document.getElementById('venSupFilter');
+  const filSel = document.getElementById('venFilialFilter');
+  const supervisoresUnicos = [...new Set(vendedores.map(v=>v.supervisor))].sort((a,b)=>a.localeCompare(b));
+  const filiaisUnicas = [...new Set(vendedores.map(v=>v.filial))].sort((a,b)=>a.localeCompare(b));
+  supSel.innerHTML = '<option value="">Todos os supervisores</option>' + supervisoresUnicos.map(s=>`<option value="${s}">${s}</option>`).join('');
+  filSel.innerHTML = '<option value="">Todas as filiais</option>' + filiaisUnicas.map(f=>`<option value="${f}">Filial ${f}</option>`).join('');
+}
+
+function buildSupervisores(){
+  const map = {};
+  rawRows.forEach(r=>{
+    const key = r.codSup+'|'+r.nomeSup+'|'+r.filial;
+    if(!map[key]) map[key] = {codSup:r.codSup, nomeSup:r.nomeSup, filial:r.filial, fat:0, inad:0};
+    map[key].fat += r.fat;
+    map[key].inad += r.inad;
+  });
+  supervisores = Object.values(map).map(s=>({...s, pct: s.fat>0 ? (s.inad/s.fat*100) : 0}));
+}
+
+function renderAll(){
+  renderKpis();
+  renderFiliais();
+  renderTable('sup');
+  renderTable('ven');
+}
+
+function renderKpis(){
+  const totalFat = rawRows.reduce((a,r)=>a+r.fat,0);
+  const totalInad = rawRows.reduce((a,r)=>a+r.inad,0);
+  const pct = totalFat>0 ? (totalInad/totalFat*100) : 0;
+  const filiais = new Set(rawRows.map(r=>r.filial));
+  const vens = new Set(rawRows.map(r=>r.codVen+r.nomeVen));
+
+  document.getElementById('kpiFaturamento').textContent = fmtBRL(totalFat);
+  document.getElementById('kpiInadimplencia').textContent = fmtBRL(totalInad);
+  document.getElementById('kpiPerc').textContent = fmtPct(pct);
+  document.getElementById('kpiFiliais').textContent = filiais.size;
+  document.getElementById('kpiVendedores').textContent = vens.size;
+  document.getElementById('kpiFaturamentoSub').textContent = rawRows.length + ' lançamentos';
+  document.getElementById('kpiInadimplenciaSub').textContent = pct.toFixed(2)+'% do faturamento';
+  document.getElementById('kpiFiliaisSub').textContent = 'unidades ativas';
+  document.getElementById('kpiVendedoresSub').textContent = 'vendedores únicos';
+
+  const card = document.getElementById('kpiPercCard');
+  card.className = 'kpi-card' + (pct>=1.5?' red':'');
+}
+
+function renderFiliais(){
+  const map = {};
+  rawRows.forEach(r=>{
+    if(!map[r.filial]) map[r.filial] = {fat:0, inad:0};
+    map[r.filial].fat += r.fat;
+    map[r.filial].inad += r.inad;
+  });
+  const list = Object.entries(map).map(([filial, v])=>({filial, ...v, pct: v.fat>0?(v.inad/v.fat*100):0}));
+  list.sort((a,b)=>b.fat-a.fat);
+  const container = document.getElementById('filialList');
+  container.innerHTML = list.map(f=>{
+    const cls = f.pct<0.5?'pct-low':(f.pct<1.5?'pct-mid':'pct-high');
+    const barColor = f.pct<0.5?'var(--green-deep)':(f.pct<1.5?'#E8A800':'var(--danger)');
+    const width = Math.min(f.pct/3*100, 100);
+    return `<div class="filial-item">
+      <div class="fi-top">
+        <span class="fi-name">Filial ${f.filial}</span>
+        <span class="fi-pct pct-badge ${cls}">${fmtPct(f.pct)}</span>
+      </div>
+      <div class="fi-fat">${fmtBRL(f.fat)} faturado · ${fmtBRL(f.inad)} inadimplente</div>
+      <div class="fi-track"><div class="fi-fill" style="width:${width}%;background:${barColor};"></div></div>
+    </div>`;
+  }).join('');
+}
+
+function getFilteredSup(){
+  const search = document.getElementById('supSearch').value.trim().toLowerCase();
+  const min = parseFloat(document.getElementById('supPctMin').value);
+  const max = parseFloat(document.getElementById('supPctMax').value);
+  let rows = supervisores.filter(s=>{
+    if(search && !(s.nomeSup.toLowerCase().includes(search) || s.codSup.toLowerCase().includes(search))) return false;
+    if(!isNaN(min) && s.pct < min) return false;
+    if(!isNaN(max) && s.pct > max) return false;
+    return true;
+  });
+  const {key,dir} = sortState.sup;
+  rows.sort((a,b)=>{
+    let va=a[key], vb=b[key];
+    if(typeof va === 'string') return va.localeCompare(vb)*dir;
+    return (va-vb)*dir;
+  });
+  return rows;
+}
+
+function getFilteredVen(){
+  const search = document.getElementById('venSearch').value.trim().toLowerCase();
+  const min = parseFloat(document.getElementById('venPctMin').value);
+  const max = parseFloat(document.getElementById('venPctMax').value);
+  const supFilter = document.getElementById('venSupFilter').value;
+  const filialFilter = document.getElementById('venFilialFilter').value;
+  let rows = vendedores.filter(v=>{
+    if(search && !(v.nomeVen.toLowerCase().includes(search) || v.codVen.toLowerCase().includes(search))) return false;
+    if(!isNaN(min) && v.pct < min) return false;
+    if(!isNaN(max) && v.pct > max) return false;
+    if(supFilter && v.supervisor !== supFilter) return false;
+    if(filialFilter && v.filial !== filialFilter) return false;
+    return true;
+  });
+  const {key,dir} = sortState.ven;
+  rows.sort((a,b)=>{
+    let va=a[key], vb=b[key];
+    if(typeof va === 'string') return va.localeCompare(vb)*dir;
+    return (va-vb)*dir;
+  });
+  return rows;
+}
+
+function renderTable(type){
+  if(type==='sup'){
+    const rows = getFilteredSup();
+    const tbody = document.getElementById('supTbody');
+    tbody.innerHTML = rows.map(s=>`<tr>
+      <td>${s.codSup}</td><td>${s.nomeSup}</td><td>${s.filial}</td>
+      <td class="num">${fmtBRL(s.fat)}</td><td class="num">${fmtBRL(s.inad)}</td>
+      <td><span class="pct-badge ${pctClass(s.pct)}">${fmtPct(s.pct)}</span></td>
+    </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--ink-soft);padding:24px;">Nenhum resultado encontrado para os filtros aplicados.</td></tr>';
+    document.getElementById('supMeta').textContent = `${rows.length} de ${supervisores.length} supervisores exibidos`;
+  } else {
+    const rows = getFilteredVen();
+    const tbody = document.getElementById('venTbody');
+    tbody.innerHTML = rows.map(v=>`<tr>
+      <td>${v.codVen}</td><td>${v.nomeVen}</td><td>${v.supervisor}</td><td>${v.filial}</td>
+      <td class="num">${fmtBRL(v.fat)}</td><td class="num">${fmtBRL(v.inad)}</td>
+      <td><span class="pct-badge ${pctClass(v.pct)}">${fmtPct(v.pct)}</span></td>
+    </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--ink-soft);padding:24px;">Nenhum resultado encontrado para os filtros aplicados.</td></tr>';
+    document.getElementById('venMeta').textContent = `${rows.length} de ${vendedores.length} vendedores exibidos`;
+  }
+}
+
+document.querySelectorAll('#supTable thead th').forEach(th=>{
+  th.addEventListener('click', ()=>{
+    const key = th.dataset.key;
+    if(sortState.sup.key===key) sortState.sup.dir *= -1;
+    else { sortState.sup.key = key; sortState.sup.dir = 1; }
+    renderTable('sup');
+  });
+});
+document.querySelectorAll('#venTable thead th').forEach(th=>{
+  th.addEventListener('click', ()=>{
+    const key = th.dataset.key;
+    if(sortState.ven.key===key) sortState.ven.dir *= -1;
+    else { sortState.ven.key = key; sortState.ven.dir = 1; }
+    renderTable('ven');
+  });
+});
+
+['supSearch','supPctMin','supPctMax'].forEach(id=>document.getElementById(id).addEventListener('input', ()=>renderTable('sup')));
+['venSearch','venPctMin','venPctMax','venSupFilter','venFilialFilter'].forEach(id=>document.getElementById(id).addEventListener('input', ()=>renderTable('ven')));
+document.getElementById('venSupFilter').addEventListener('change', ()=>renderTable('ven'));
+document.getElementById('venFilialFilter').addEventListener('change', ()=>renderTable('ven'));
+
+function exportTable(type, format){
+  const rows = type==='sup' ? getFilteredSup() : getFilteredVen();
+  if(rows.length===0){ alert('Não há dados para exportar com os filtros atuais.'); return; }
+
+  if(format==='xlsx'){
+    let data;
+    if(type==='sup'){
+      data = rows.map(s=>({
+        'Código Supervisor': s.codSup, 'Supervisor': s.nomeSup, 'Filial': s.filial,
+        'Faturamento': s.fat, 'Inadimplência': s.inad, '% Inadimplência': Number(s.pct.toFixed(2))
+      }));
+    } else {
+      data = rows.map(v=>({
+        'Código Vendedor': v.codVen, 'Vendedor': v.nomeVen, 'Supervisor': v.supervisor, 'Filial': v.filial,
+        'Faturamento': v.fat, 'Inadimplência': v.inad, '% Inadimplência': Number(v.pct.toFixed(2))
+      }));
+    }
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, type==='sup'?'Supervisores':'Vendedores');
+    XLSX.writeFile(wb, (type==='sup'?'supervisores_inadimplencia':'vendedores_inadimplencia')+'.xlsx');
+  } else {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({orientation:'landscape', unit:'pt'});
+    doc.setFontSize(14);
+    doc.setTextColor(72,14,101);
+    doc.text(type==='sup' ? 'Relatório de Inadimplência — Supervisores' : 'Relatório de Inadimplência — Vendedores', 40, 36);
+    doc.setFontSize(9);
+    doc.setTextColor(100,100,100);
+    doc.text('Gerado em ' + new Date().toLocaleString('pt-BR'), 40, 52);
+
+    const totalFatExp = rows.reduce((a,r)=>a+r.fat,0);
+    const totalInadExp = rows.reduce((a,r)=>a+r.inad,0);
+    const totalPctExp = totalFatExp>0 ? (totalInadExp/totalFatExp*100) : 0;
+    doc.setFontSize(10);
+    doc.setTextColor(72,14,101);
+    doc.text(`Faturamento Total: ${fmtBRL(totalFatExp)}`, 40, 68);
+    doc.setTextColor(224,68,91);
+    doc.text(`Inadimplência Total: ${fmtBRL(totalInadExp)}`, 280, 68);
+    doc.setTextColor(0,160,80);
+    doc.text(`% Inadimplência: ${fmtPct(totalPctExp)}`, 520, 68);
+    doc.setTextColor(100,100,100);
+
+    let head, body;
+    if(type==='sup'){
+      head = [['Código','Supervisor','Filial','Faturamento','Inadimplência','% Inadimplência']];
+      body = rows.map(s=>[s.codSup, s.nomeSup, s.filial, fmtBRL(s.fat), fmtBRL(s.inad), fmtPct(s.pct)]);
+    } else {
+      head = [['Código','Vendedor','Supervisor','Filial','Faturamento','Inadimplência','% Inadimplência']];
+      body = rows.map(v=>[v.codVen, v.nomeVen, v.supervisor, v.filial, fmtBRL(v.fat), fmtBRL(v.inad), fmtPct(v.pct)]);
+    }
+    doc.autoTable({
+      head, body, startY:84,
+      headStyles:{fillColor:[72,14,101], textColor:255, fontSize:9},
+      bodyStyles:{fontSize:8.5},
+      alternateRowStyles:{fillColor:[247,244,251]},
+      margin:{left:40,right:40}
+    });
+    doc.save((type==='sup'?'supervisores_inadimplencia':'vendedores_inadimplencia')+'.pdf');
+  }
+}
+</script>
+</body>
+</html>
