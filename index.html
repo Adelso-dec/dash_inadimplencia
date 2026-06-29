@@ -209,6 +209,7 @@
   .pct-low{background:var(--ok-soft);color:#0B7A3E;}
   .pct-mid{background:#FFF3D6;color:#9A6700;}
   .pct-high{background:var(--danger-soft);color:#A8233A;}
+  .pct-nofat{background:#FDE7C8;color:#8A4B00;}
 
   .table-scroll{max-height:520px;overflow:auto;}
   .table-meta{padding:10px 22px;font-size:12px;color:var(--ink-soft);border-top:1px solid var(--line);background:#FBFAFD;}
@@ -374,12 +375,20 @@ let supervisores = [];
 let sortState = {sup:{key:'inad',dir:-1}, ven:{key:'inad',dir:-1}};
 
 const fmtBRL = v => 'R$ ' + (v||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
-const fmtPct = v => (v||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) + '%';
+const fmtPct = v => v===Infinity ? 'Sem faturamento' : (v||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) + '%';
 
 function pctClass(p){
+  if(p === Infinity) return 'pct-nofat';
   if(p < 0.5) return 'pct-low';
   if(p < 1.5) return 'pct-mid';
   return 'pct-high';
+}
+
+function numCompare(va, vb){
+  if(va === vb) return 0;
+  if(va === Infinity) return 1;
+  if(vb === Infinity) return -1;
+  return va - vb;
 }
 
 document.getElementById('fileInput').addEventListener('change', handleFile);
@@ -427,7 +436,7 @@ function processRows(json){
 function buildVendedores(){
   vendedores = rawRows.map(r=>({
     codVen:r.codVen, nomeVen:r.nomeVen, supervisor:r.nomeSup, filial:r.filial,
-    fat:r.fat, inad:r.inad, pct: r.fat>0 ? (r.inad/r.fat*100) : 0
+    fat:r.fat, inad:r.inad, pct: r.fat>0 ? (r.inad/r.fat*100) : (r.inad>0 ? Infinity : 0)
   }));
 }
 
@@ -448,7 +457,7 @@ function buildSupervisores(){
     map[key].fat += r.fat;
     map[key].inad += r.inad;
   });
-  supervisores = Object.values(map).map(s=>({...s, pct: s.fat>0 ? (s.inad/s.fat*100) : 0}));
+  supervisores = Object.values(map).map(s=>({...s, pct: s.fat>0 ? (s.inad/s.fat*100) : (s.inad>0 ? Infinity : 0)}));
 }
 
 function renderAll(){
@@ -518,7 +527,7 @@ function getFilteredSup(){
   rows.sort((a,b)=>{
     let va=a[key], vb=b[key];
     if(typeof va === 'string') return va.localeCompare(vb)*dir;
-    return (va-vb)*dir;
+    return numCompare(va,vb)*dir;
   });
   return rows;
 }
@@ -541,7 +550,7 @@ function getFilteredVen(){
   rows.sort((a,b)=>{
     let va=a[key], vb=b[key];
     if(typeof va === 'string') return va.localeCompare(vb)*dir;
-    return (va-vb)*dir;
+    return numCompare(va,vb)*dir;
   });
   return rows;
 }
@@ -599,12 +608,12 @@ function exportTable(type, format){
     if(type==='sup'){
       data = rows.map(s=>({
         'Código Supervisor': s.codSup, 'Supervisor': s.nomeSup, 'Filial': s.filial,
-        'Faturamento': s.fat, 'Inadimplência': s.inad, '% Inadimplência': Number(s.pct.toFixed(2))
+        'Faturamento': s.fat, 'Inadimplência': s.inad, '% Inadimplência': s.pct===Infinity ? 'Sem faturamento' : Number(s.pct.toFixed(2))
       }));
     } else {
       data = rows.map(v=>({
         'Código Vendedor': v.codVen, 'Vendedor': v.nomeVen, 'Supervisor': v.supervisor, 'Filial': v.filial,
-        'Faturamento': v.fat, 'Inadimplência': v.inad, '% Inadimplência': Number(v.pct.toFixed(2))
+        'Faturamento': v.fat, 'Inadimplência': v.inad, '% Inadimplência': v.pct===Infinity ? 'Sem faturamento' : Number(v.pct.toFixed(2))
       }));
     }
     const ws = XLSX.utils.json_to_sheet(data);
