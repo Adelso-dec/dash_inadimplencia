@@ -250,7 +250,7 @@
   .tree-titulos{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:4px;}
   .tree-titulos th{
     text-align:left;padding:6px 10px;font-size:10.5px;text-transform:uppercase;letter-spacing:0.3px;
-    color:var(--ink-soft);border-bottom:1px solid var(--line);font-weight:700;
+    color:#FFFFFF;border-bottom:1px solid var(--line);font-weight:700;
   }
   .tree-titulos td{padding:6px 10px;border-bottom:1px solid var(--line);}
   .tree-titulos td.num{font-family:var(--mono);text-align:right;white-space:nowrap;}
@@ -453,6 +453,30 @@
       <div class="filial-card">
         <h3>Aging da Inadimplência (dias de atraso)</h3>
         <div class="filial-list" id="agingList"></div>
+      </div>
+
+      <div class="filial-card">
+        <h3>Inadimplência por Portador</h3>
+        <div class="filial-list" id="portadorList"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Valor, Saldo, Juros e Saldo Corrido por Filial</h2>
+      </div>
+      <div class="table-scroll">
+        <table id="filialDetTable">
+          <thead><tr>
+            <th>Filial</th>
+            <th style="text-align:right;">Qtd. Títulos</th>
+            <th style="text-align:right;">Valor</th>
+            <th style="text-align:right;">Saldo</th>
+            <th style="text-align:right;">Juros</th>
+            <th style="text-align:right;">Saldo Corrido</th>
+          </tr></thead>
+          <tbody id="filialDetTbody"></tbody>
+        </table>
       </div>
     </div>
 
@@ -965,6 +989,8 @@ function populateDetFilters(){
 function renderAllDetailed(){
   renderKpisDetalhado();
   renderAging();
+  renderPortador();
+  renderFilialDet();
   renderTableDet('cli');
   renderTableDet('venDet');
   renderTree();
@@ -1016,6 +1042,58 @@ function renderAging(){
       <div class="fi-track"><div class="fi-fill" style="width:${pctDoTotal}%;background:${b.color};"></div></div>
     </div>`;
   }).join('');
+}
+
+function renderPortador(){
+  const map = {};
+  titulos.forEach(t=>{
+    const key = t.portador || '(Sem portador)';
+    if(!map[key]) map[key] = {qtdTitulos:0, saldoCorrido:0};
+    map[key].qtdTitulos += 1;
+    map[key].saldoCorrido += t.saldoCorrido;
+  });
+  const list = Object.entries(map).map(([portador, v])=>({portador, ...v}));
+  list.sort((a,b)=>b.saldoCorrido-a.saldoCorrido);
+  const totalSaldo = titulos.reduce((a,t)=>a+t.saldoCorrido,0);
+  const cores = ['var(--purple)','var(--purple-soft)','var(--green-deep)','#E8A800','#E8761A','var(--danger)'];
+  const container = document.getElementById('portadorList');
+  container.innerHTML = list.map((p,i)=>{
+    const pctDoTotal = totalSaldo>0 ? (p.saldoCorrido/totalSaldo*100) : 0;
+    const cor = cores[i % cores.length];
+    return `<div class="filial-item">
+      <div class="fi-top">
+        <span class="fi-name">${escapeHtml(p.portador)}</span>
+        <span class="fi-pct pct-badge" style="background:${cor};color:#fff;">${p.qtdTitulos} títulos</span>
+      </div>
+      <div class="fi-fat">${fmtBRL(p.saldoCorrido)} em saldo corrido</div>
+      <div class="fi-track"><div class="fi-fill" style="width:${pctDoTotal}%;background:${cor};"></div></div>
+    </div>`;
+  }).join('') || '<p style="color:var(--ink-soft);font-size:13px;">Nenhum dado de portador encontrado.</p>';
+}
+
+function renderFilialDet(){
+  const map = {};
+  titulos.forEach(t=>{
+    const key = t.filial || '(Sem filial)';
+    if(!map[key]) map[key] = {qtdTitulos:0, valor:0, saldo:0, juros:0, saldoCorrido:0};
+    map[key].qtdTitulos += 1;
+    map[key].valor += t.valor;
+    map[key].saldo += t.saldo;
+    map[key].juros += t.juros;
+    map[key].saldoCorrido += t.saldoCorrido;
+  });
+  const list = Object.entries(map).map(([filial, v])=>({filial, ...v}));
+  list.sort((a,b)=>b.saldoCorrido-a.saldoCorrido);
+  const tbody = document.getElementById('filialDetTbody');
+  tbody.innerHTML = list.map(f=>`<tr>
+    <td>${escapeHtml(f.filial)}</td>
+    <td class="num">${f.qtdTitulos}</td>
+    <td class="num">${fmtBRL(f.valor)}</td>
+    <td class="num">${fmtBRL(f.saldo)}</td>
+    <td class="num">${fmtBRL(f.juros)}</td>
+    <td class="num">${fmtBRL(f.saldoCorrido)}</td>
+  </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--ink-soft);padding:24px;">Nenhum dado encontrado.</td></tr>';
+  setTimeout(()=>fitNumberCells('filialDetTable'), 0);
 }
 
 function getFilteredCli(){
