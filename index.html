@@ -32,6 +32,7 @@
     font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     background:var(--bg);
     color:var(--ink);
+    overflow-x:hidden;
   }
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
 
@@ -40,7 +41,6 @@
     color:#fff;
     padding:28px 32px 80px;
     position:relative;
-    overflow:hidden;
   }
   header::after{
     content:"";
@@ -298,7 +298,12 @@
       <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none;">
     </label>
   </div>
-  <div id="modeBadge" class="mode-badge hidden"></div>
+  <div style="position:relative;z-index:2;display:flex;gap:10px;flex-wrap:wrap;">
+    <div id="modeBadge" class="mode-badge hidden"></div>
+    <div id="periodoBadge" class="mode-badge hidden"></div>
+    <div id="periodoFatBadge" class="mode-badge hidden"></div>
+    <div id="periodoInadBadge" class="mode-badge hidden"></div>
+  </div>
 </header>
 
 <main>
@@ -589,6 +594,9 @@ function handleFile(e){
     document.getElementById('emptyState').classList.add('hidden');
     const badge = document.getElementById('modeBadge');
     badge.classList.remove('hidden');
+    document.getElementById('periodoBadge').classList.add('hidden');
+    document.getElementById('periodoFatBadge').classList.add('hidden');
+    document.getElementById('periodoInadBadge').classList.add('hidden');
     if(isDetailed){
       badge.textContent = 'Modo: Detalhado';
       processDetailedRows(json);
@@ -600,8 +608,26 @@ function handleFile(e){
   reader.readAsArrayBuffer(file);
 }
 
+function parseExcelDate(v){
+  if(v instanceof Date) return v;
+  if(typeof v === 'number'){
+    const epoch = new Date(1899,11,30);
+    return new Date(epoch.getTime() + v*86400000);
+  }
+  if(typeof v === 'string'){
+    const m = v.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+    if(m) return new Date(+m[3], +m[2]-1, +m[1]);
+  }
+  return null;
+}
+
+function fmtDateBR(d){
+  return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
+}
+
 function processRows(json){
   rawRows = [];
+  let fatInicio=[], fatFim=[], inadInicio=[], inadFim=[];
   for(let i=1;i<json.length;i++){
     const r = json[i];
     if(!r || r.every(c=>c===null||c==='')) continue;
@@ -616,11 +642,31 @@ function processRows(json){
     const fat = parseFloat(r[8])||0;        // coluna I
     if(!nomeVen && !codVen) continue;
     rawRows.push({filial, codVen, nomeVen, codSup, nomeSup, codGr, gerente, inad, fat});
+    const dFatIni = parseExcelDate(r[10]);
+    const dFatFim = parseExcelDate(r[11]);
+    const dInadIni = parseExcelDate(r[12]);
+    const dInadFim = parseExcelDate(r[13]);
+    if(dFatIni) fatInicio.push(dFatIni);
+    if(dFatFim) fatFim.push(dFatFim);
+    if(dInadIni) inadInicio.push(dInadIni);
+    if(dInadFim) inadFim.push(dInadFim);
   }
   buildVendedores();
   buildSupervisores();
   populateVenFilters();
   renderAll();
+
+  const fatBadge = document.getElementById('periodoFatBadge');
+  const inadBadge = document.getElementById('periodoInadBadge');
+  if(fatInicio.length && fatFim.length){
+    fatBadge.textContent = `Faturamento: ${fmtDateBR(new Date(Math.min(...fatInicio)))} a ${fmtDateBR(new Date(Math.max(...fatFim)))}`;
+    fatBadge.classList.remove('hidden');
+  }
+  if(inadInicio.length && inadFim.length){
+    inadBadge.textContent = `Inadimplência: ${fmtDateBR(new Date(Math.min(...inadInicio)))} a ${fmtDateBR(new Date(Math.max(...inadFim)))}`;
+    inadBadge.classList.remove('hidden');
+  }
+
   document.getElementById('dashboardContent').classList.remove('hidden');
 }
 
@@ -823,7 +869,9 @@ function processDetailedRows(json){
     const tipo = String(r[12]??'').trim();
     const numero = String(r[14]??'').trim();
     const parcela = String(r[15]??'').trim();
-    const vencimento = String(r[18]??'').trim();
+    const vencimentoRaw = r[18];
+    const vencimentoDate = parseExcelDate(vencimentoRaw);
+    const vencimento = vencimentoDate ? fmtDateBR(vencimentoDate) : String(vencimentoRaw??'').trim();
     const valor = parseFloat(r[19])||0;
     const saldo = parseFloat(r[20])||0;
     const juros = parseFloat(r[21])||0;
@@ -831,13 +879,25 @@ function processDetailedRows(json){
     const diasAtraso = parseFloat(r[23])||0;
     const serasa = String(r[24]??'').trim();
     if(!nomeVen && !codVen && !cnpj) continue;
-    titulos.push({filial, codVen, nomeVen, codSup, nomeSup, codGer, nomeGer, cnpj, cliente, loja, nomeCliente, razao, tipo, numero, parcela, vencimento, valor, saldo, juros, saldoCorrido, diasAtraso, serasa});
+    titulos.push({filial, codVen, nomeVen, codSup, nomeSup, codGer, nomeGer, cnpj, cliente, loja, nomeCliente, razao, tipo, numero, parcela, vencimento, vencimentoDate, valor, saldo, juros, saldoCorrido, diasAtraso, serasa});
   }
   buildClientes();
   buildVendedoresDet();
   populateDetFilters();
   renderAllDetailed();
+  renderPeriodoBadge();
   document.getElementById('detailedContent').classList.remove('hidden');
+}
+
+function renderPeriodoBadge(){
+  const datas = titulos.map(t=>t.vencimentoDate).filter(Boolean);
+  const badge = document.getElementById('periodoBadge');
+  if(datas.length===0){ badge.classList.add('hidden'); return; }
+  const minData = new Date(Math.min(...datas));
+  const maxData = new Date(Math.max(...datas));
+  const fmtDate = fmtDateBR;
+  badge.textContent = `Período (Vencimento): ${fmtDate(minData)} a ${fmtDate(maxData)}`;
+  badge.classList.remove('hidden');
 }
 
 function buildClientes(){
@@ -1095,11 +1155,9 @@ function renderTree(){
           if(numCmp !== 0) return numCmp;
           const parcCmp = (a.parcela||'').localeCompare(b.parcela||'', undefined, {numeric:true});
           if(parcCmp !== 0) return parcCmp;
-          const parseDate = d => {
-            const m = (d||'').match(/(\d{2})\/(\d{2})\/(\d{4})/);
-            return m ? new Date(+m[3], +m[2]-1, +m[1]).getTime() : 0;
-          };
-          return parseDate(a.vencimento) - parseDate(b.vencimento);
+          const dA = a.vencimentoDate ? a.vencimentoDate.getTime() : 0;
+          const dB = b.vencimentoDate ? b.vencimentoDate.getTime() : 0;
+          return dA - dB;
         }).map(t=>`
           <tr>
             <td>${escapeHtml(t.tipo)} ${escapeHtml(t.numero)}${t.parcela?(' / parc. '+escapeHtml(t.parcela)):''}</td>
