@@ -415,7 +415,7 @@
   <div id="detailedContent" class="hidden">
     <div class="kpi-grid">
       <div class="kpi-card"><div class="bar" style="background:var(--purple);"></div>
-        <div class="kpi-label">Saldo Corrido Total</div>
+        <div class="kpi-label">Saldo</div>
         <div class="kpi-value" id="kpiSaldoCorrido">R$ 0</div>
         <div class="kpi-sub" id="kpiSaldoCorridoSub">—</div>
       </div>
@@ -899,7 +899,7 @@ function renderKpisDetalhado(){
   const titulosSerasa = titulos.filter(t=>isSerasaIncluido(t.serasa)).length;
   const pctSerasa = qtdTitulos>0 ? (titulosSerasa/qtdTitulos*100) : 0;
 
-  document.getElementById('kpiSaldoCorrido').textContent = fmtBRL(totalSaldoCorrido);
+  document.getElementById('kpiSaldoCorrido').textContent = fmtBRL(titulos.reduce((a,t)=>a+t.saldo,0));
   document.getElementById('kpiJuros').textContent = fmtBRL(totalJuros);
   document.getElementById('kpiQtdTitulos').textContent = qtdTitulos;
   document.getElementById('kpiQtdClientes').textContent = qtdClientes;
