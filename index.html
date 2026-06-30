@@ -1052,13 +1052,13 @@ function buildTreeData(){
     const venKey = t.nomeVen || '(Sem vendedor)';
     const cliKey = (t.cnpj||'') + '|' + (t.loja||'') + '|' + (t.nomeCliente||'(Sem cliente)');
     if(!tree[supKey]) tree[supKey] = {saldoCorrido:0, vendedores:{}};
-    tree[supKey].saldoCorrido += t.saldoCorrido;
+    tree[supKey].saldoCorrido += t.saldo;
     const supNode = tree[supKey];
     if(!supNode.vendedores[venKey]) supNode.vendedores[venKey] = {saldoCorrido:0, clientes:{}};
-    supNode.vendedores[venKey].saldoCorrido += t.saldoCorrido;
+    supNode.vendedores[venKey].saldoCorrido += t.saldo;
     const venNode = supNode.vendedores[venKey];
     if(!venNode.clientes[cliKey]) venNode.clientes[cliKey] = {nome:t.nomeCliente||'(Sem cliente)', cnpj:t.cnpj, saldoCorrido:0, titulos:[]};
-    venNode.clientes[cliKey].saldoCorrido += t.saldoCorrido;
+    venNode.clientes[cliKey].saldoCorrido += t.saldo;
     venNode.clientes[cliKey].titulos.push(t);
   });
   return tree;
