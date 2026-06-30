@@ -573,6 +573,17 @@ function fitNumberCells(tableId){
   });
 }
 
+function fitKpiValue(elId){
+  const el = document.getElementById(elId);
+  if(!el) return;
+  el.style.fontSize = '';
+  let size = 24;
+  while(el.scrollWidth > el.clientWidth && size > 9){
+    size -= 0.5;
+    el.style.fontSize = size+'px';
+  }
+}
+
 function numCompare(va, vb){
   if(va === vb) return 0;
   if(va === Infinity) return 1;
@@ -728,6 +739,8 @@ function renderKpis(){
 
   const card = document.getElementById('kpiPercCard');
   card.className = 'kpi-card' + (pct>=1.5?' red':'');
+
+  setTimeout(()=>{ fitKpiValue('kpiFaturamento'); fitKpiValue('kpiInadimplencia'); }, 0);
 }
 
 function renderFiliais(){
@@ -975,6 +988,7 @@ function renderKpisDetalhado(){
   document.getElementById('kpiQtdTitulosSub').textContent = 'notas/parcelas em aberto';
   document.getElementById('kpiQtdClientesSub').textContent = 'CNPJs únicos';
   document.getElementById('kpiSerasaSub').textContent = titulosSerasa + ' título(s) no Serasa';
+  setTimeout(()=>{ fitKpiValue('kpiSaldoCorrido'); fitKpiValue('kpiJuros'); }, 0);
 
   const card = document.getElementById('kpiSerasaCard');
   card.className = 'kpi-card' + (pctSerasa>=15?' red':'');
