@@ -247,13 +247,20 @@
   .tree-node.lvl-sup > summary{background:#F3ECF8;}
   .tree-node.lvl-ven > summary{background:#FAF8FC;}
   .tree-node.lvl-cli > summary{background:#FFFFFF;border-bottom:1px solid var(--line);}
-  .tree-titulos{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:4px;}
+  .tree-titulos{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:4px;table-layout:fixed;}
   .tree-titulos th{
     text-align:left;padding:6px 10px;font-size:10.5px;text-transform:uppercase;letter-spacing:0.3px;
-    color:#FFFFFF;border-bottom:1px solid var(--line);font-weight:700;
+    color:#FFFFFF;border-bottom:1px solid var(--line);font-weight:700;overflow:hidden;
   }
-  .tree-titulos td{padding:6px 10px;border-bottom:1px solid var(--line);}
+  .tree-titulos td{padding:6px 10px;border-bottom:1px solid var(--line);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .tree-titulos td.num{font-family:var(--mono);text-align:right;white-space:nowrap;}
+  .tree-titulos col.col-titulo{width:28%;}
+  .tree-titulos col.col-valor{width:11%;}
+  .tree-titulos col.col-saldo{width:11%;}
+  .tree-titulos col.col-venc{width:11%;}
+  .tree-titulos col.col-port{width:11%;}
+  .tree-titulos col.col-atraso{width:13%;}
+  .tree-titulos col.col-copy{width:5%;}
   .atraso-badge{
     font-family:var(--mono);font-weight:700;font-size:11px;padding:2px 7px;border-radius:6px;display:inline-block;
   }
@@ -491,6 +498,7 @@
       <div class="filters">
         <input type="text" id="cliSearch" placeholder="Filtrar por nome do cliente ou CNPJ...">
         <select id="cliFilialFilter"><option value="">Todas as filiais</option></select>
+        <select id="cliSupFilter"><option value="">Todos os supervisores</option></select>
         <select id="cliVenFilter"><option value="">Todos os vendedores</option></select>
         <select id="cliSerasaFilter">
           <option value="">Todos os status Serasa</option>
@@ -503,6 +511,7 @@
           <thead><tr>
             <th data-key="cnpj">CNPJ</th>
             <th data-key="nomeCliente">Cliente</th>
+            <th data-key="supervisor">Supervisor</th>
             <th data-key="filial">Filial</th>
             <th data-key="nomeVen">Vendedor</th>
             <th data-key="qtdTitulos">Qtd. Títulos</th>
@@ -946,8 +955,8 @@ function renderPeriodoBadge(){
 function buildClientes(){
   const map = {};
   titulos.forEach(t=>{
-    const key = t.cnpj+'|'+t.loja;
-    if(!map[key]) map[key] = {cnpj:t.cnpj, nomeCliente:t.nomeCliente, razao:t.razao, filial:t.filial, codVen:t.codVen, nomeVen:t.nomeVen, qtdTitulos:0, valor:0, saldo:0, saldoCorrido:0, juros:0, maxAtraso:0, serasaFlag:false};
+    const key = t.cnpj+'|'+t.loja+'|'+t.codVen+'|'+t.codSup;
+    if(!map[key]) map[key] = {cnpj:t.cnpj, nomeCliente:t.nomeCliente, razao:t.razao, filial:t.filial, codVen:t.codVen, nomeVen:t.nomeVen, supervisor:t.nomeSup, qtdTitulos:0, valor:0, saldo:0, saldoCorrido:0, juros:0, maxAtraso:0, serasaFlag:false};
     map[key].qtdTitulos += 1;
     map[key].valor += t.valor;
     map[key].saldo += t.saldo;
@@ -981,6 +990,7 @@ function populateDetFilters(){
   const supervisoresUnicos = [...new Set(titulos.map(t=>t.nomeSup))].filter(Boolean).sort((a,b)=>a.localeCompare(b));
 
   document.getElementById('cliFilialFilter').innerHTML = '<option value="">Todas as filiais</option>' + filiaisUnicas.map(f=>`<option value="${f}">Filial ${f}</option>`).join('');
+  document.getElementById('cliSupFilter').innerHTML = '<option value="">Todos os supervisores</option>' + supervisoresUnicos.map(s=>`<option value="${s}">${s}</option>`).join('');
   document.getElementById('cliVenFilter').innerHTML = '<option value="">Todos os vendedores</option>' + vendedoresUnicos.map(v=>`<option value="${v}">${v}</option>`).join('');
   document.getElementById('venDetFilialFilter').innerHTML = '<option value="">Todas as filiais</option>' + filiaisUnicas.map(f=>`<option value="${f}">Filial ${f}</option>`).join('');
   document.getElementById('venDetSupFilter').innerHTML = '<option value="">Todos os supervisores</option>' + supervisoresUnicos.map(s=>`<option value="${s}">${s}</option>`).join('');
@@ -1027,18 +1037,18 @@ function renderAging(){
     {label:'61–90 dias', min:61, max:90, color:'#E8761A'},
     {label:'90+ dias', min:91, max:Infinity, color:'var(--danger)'}
   ];
-  const totalSaldo = titulos.reduce((a,t)=>a+t.saldoCorrido,0);
+  const totalSaldo = titulos.reduce((a,t)=>a+t.saldo,0);
   const container = document.getElementById('agingList');
   container.innerHTML = buckets.map(b=>{
     const subset = titulos.filter(t=>t.diasAtraso>=b.min && t.diasAtraso<=b.max);
-    const saldo = subset.reduce((a,t)=>a+t.saldoCorrido,0);
+    const saldo = subset.reduce((a,t)=>a+t.saldo,0);
     const pctDoTotal = totalSaldo>0 ? (saldo/totalSaldo*100) : 0;
     return `<div class="filial-item">
       <div class="fi-top">
         <span class="fi-name">${b.label}</span>
         <span class="fi-pct pct-badge" style="background:${b.color};color:#fff;">${subset.length} títulos</span>
       </div>
-      <div class="fi-fat">${fmtBRL(saldo)} em saldo corrido</div>
+      <div class="fi-fat">${fmtBRL(saldo)} em saldo</div>
       <div class="fi-track"><div class="fi-fill" style="width:${pctDoTotal}%;background:${b.color};"></div></div>
     </div>`;
   }).join('');
@@ -1048,24 +1058,24 @@ function renderPortador(){
   const map = {};
   titulos.forEach(t=>{
     const key = t.portador || '(Sem portador)';
-    if(!map[key]) map[key] = {qtdTitulos:0, saldoCorrido:0};
+    if(!map[key]) map[key] = {qtdTitulos:0, saldo:0};
     map[key].qtdTitulos += 1;
-    map[key].saldoCorrido += t.saldoCorrido;
+    map[key].saldo += t.saldo;
   });
   const list = Object.entries(map).map(([portador, v])=>({portador, ...v}));
-  list.sort((a,b)=>b.saldoCorrido-a.saldoCorrido);
-  const totalSaldo = titulos.reduce((a,t)=>a+t.saldoCorrido,0);
+  list.sort((a,b)=>b.saldo-a.saldo);
+  const totalSaldo = titulos.reduce((a,t)=>a+t.saldo,0);
   const cores = ['var(--purple)','var(--purple-soft)','var(--green-deep)','#E8A800','#E8761A','var(--danger)'];
   const container = document.getElementById('portadorList');
   container.innerHTML = list.map((p,i)=>{
-    const pctDoTotal = totalSaldo>0 ? (p.saldoCorrido/totalSaldo*100) : 0;
+    const pctDoTotal = totalSaldo>0 ? (p.saldo/totalSaldo*100) : 0;
     const cor = cores[i % cores.length];
     return `<div class="filial-item">
       <div class="fi-top">
         <span class="fi-name">${escapeHtml(p.portador)}</span>
         <span class="fi-pct pct-badge" style="background:${cor};color:#fff;">${p.qtdTitulos} títulos</span>
       </div>
-      <div class="fi-fat">${fmtBRL(p.saldoCorrido)} em saldo corrido</div>
+      <div class="fi-fat">${fmtBRL(p.saldo)} em saldo</div>
       <div class="fi-track"><div class="fi-fill" style="width:${pctDoTotal}%;background:${cor};"></div></div>
     </div>`;
   }).join('') || '<p style="color:var(--ink-soft);font-size:13px;">Nenhum dado de portador encontrado.</p>';
@@ -1099,11 +1109,13 @@ function renderFilialDet(){
 function getFilteredCli(){
   const search = document.getElementById('cliSearch').value.trim().toLowerCase();
   const filial = document.getElementById('cliFilialFilter').value;
+  const sup = document.getElementById('cliSupFilter').value;
   const ven = document.getElementById('cliVenFilter').value;
   const serasa = document.getElementById('cliSerasaFilter').value;
   let rows = clientes.filter(c=>{
-    if(search && !(c.nomeCliente.toLowerCase().includes(search) || c.cnpj.toLowerCase().includes(search))) return false;
+    if(search && !((c.razao||c.nomeCliente).toLowerCase().includes(search) || c.cnpj.toLowerCase().includes(search))) return false;
     if(filial && c.filial !== filial) return false;
+    if(sup && c.supervisor !== sup) return false;
     if(ven && c.nomeVen !== ven) return false;
     if(serasa==='serasa' && !c.serasaFlag) return false;
     if(serasa==='nada' && c.serasaFlag) return false;
@@ -1142,12 +1154,12 @@ function renderTableDet(type){
     const rows = getFilteredCli();
     const tbody = document.getElementById('cliTbody');
     tbody.innerHTML = rows.map(c=>`<tr>
-      <td>${c.cnpj}</td><td>${c.nomeCliente}</td><td>${c.filial}</td><td>${c.nomeVen}</td>
+      <td>${c.cnpj}</td><td>${c.razao||c.nomeCliente}</td><td>${c.supervisor||'—'}</td><td>${c.filial}</td><td>${c.nomeVen}</td>
       <td class="num">${c.qtdTitulos}</td><td class="num">${fmtBRL(c.valor)}</td><td class="num">${fmtBRL(c.saldo)}</td>
       <td class="num">${fmtBRL(c.juros)}</td><td class="num">${fmtBRL(c.saldoCorrido)}</td>
       <td class="num">${c.maxAtraso}</td>
       <td><span class="pct-badge ${c.serasaFlag?'badge-serasa':'badge-ok'}">${c.serasaLabel}</span></td>
-    </tr>`).join('') || '<tr><td colspan="11" style="text-align:center;color:var(--ink-soft);padding:24px;">Nenhum resultado encontrado para os filtros aplicados.</td></tr>';
+    </tr>`).join('') || '<tr><td colspan="12" style="text-align:center;color:var(--ink-soft);padding:24px;">Nenhum resultado encontrado para os filtros aplicados.</td></tr>';
     document.getElementById('cliMeta').textContent = `${rows.length} de ${clientes.length} clientes exibidos`;
     setTimeout(()=>fitNumberCells('cliTable'), 0);
   } else {
@@ -1181,11 +1193,39 @@ document.querySelectorAll('#venDetTable thead th').forEach(th=>{
   });
 });
 
-['cliSearch','cliFilialFilter','cliVenFilter','cliSerasaFilter'].forEach(id=>{
+function updateSupFilterByFilial(){
+  const filialSel = document.getElementById('cliFilialFilter').value;
+  const supSel = document.getElementById('cliSupFilter');
+  const supAtual = supSel.value;
+  const supervisoresFiltrados = filialSel
+    ? [...new Set(titulos.filter(t=>t.filial===filialSel).map(t=>t.nomeSup))].filter(Boolean).sort((a,b)=>a.localeCompare(b))
+    : [...new Set(titulos.map(t=>t.nomeSup))].filter(Boolean).sort((a,b)=>a.localeCompare(b));
+  supSel.innerHTML = '<option value="">Todos os supervisores</option>' + supervisoresFiltrados.map(s=>`<option value="${s}">${s}</option>`).join('');
+  supSel.value = supervisoresFiltrados.includes(supAtual) ? supAtual : '';
+}
+
+function updateVenFilterBySup(){
+  const supSel = document.getElementById('cliSupFilter').value;
+  const filialSel = document.getElementById('cliFilialFilter').value;
+  const venSel = document.getElementById('cliVenFilter');
+  const venAtual = venSel.value;
+  const vendedoresFiltrados = (supSel || filialSel)
+    ? [...new Set(titulos.filter(t=>(!supSel||t.nomeSup===supSel)&&(!filialSel||t.filial===filialSel)).map(t=>t.nomeVen))].filter(Boolean).sort((a,b)=>a.localeCompare(b))
+    : [...new Set(titulos.map(t=>t.nomeVen))].filter(Boolean).sort((a,b)=>a.localeCompare(b));
+  venSel.innerHTML = '<option value="">Todos os vendedores</option>' + vendedoresFiltrados.map(v=>`<option value="${v}">${v}</option>`).join('');
+  venSel.value = vendedoresFiltrados.includes(venAtual) ? venAtual : '';
+}
+
+['cliSearch','cliVenFilter','cliSerasaFilter'].forEach(id=>{
   const el = document.getElementById(id);
   el.addEventListener('input', ()=>renderTableDet('cli'));
   el.addEventListener('change', ()=>renderTableDet('cli'));
 });
+const cliFilialEl = document.getElementById('cliFilialFilter');
+cliFilialEl.addEventListener('change', ()=>{ updateSupFilterByFilial(); updateVenFilterBySup(); renderTableDet('cli'); });
+const cliSupEl = document.getElementById('cliSupFilter');
+cliSupEl.addEventListener('change', ()=>{ updateVenFilterBySup(); renderTableDet('cli'); });
+
 ['venDetSearch','venDetSupFilter','venDetFilialFilter'].forEach(id=>{
   const el = document.getElementById(id);
   el.addEventListener('input', ()=>renderTableDet('venDet'));
@@ -1248,15 +1288,16 @@ function buildTreeData(){
   const tree = {};
   titulos.forEach(t=>{
     const supKey = t.nomeSup || '(Sem supervisor)';
-    const venKey = t.nomeVen || '(Sem vendedor)';
-    const cliKey = (t.cnpj||'') + '|' + (t.loja||'') + '|' + (t.nomeCliente||'(Sem cliente)');
+    const venKey = t.codVen ? `${t.codVen} - ${t.nomeVen||'(Sem vendedor)'}` : (t.nomeVen||'(Sem vendedor)');
+    const cliKey = (t.cnpj||'') + '|' + (t.loja||'') + '|' + (t.razao||t.nomeCliente||'(Sem cliente)');
     if(!tree[supKey]) tree[supKey] = {saldoCorrido:0, vendedores:{}};
     tree[supKey].saldoCorrido += t.saldo;
     const supNode = tree[supKey];
     if(!supNode.vendedores[venKey]) supNode.vendedores[venKey] = {saldoCorrido:0, clientes:{}};
     supNode.vendedores[venKey].saldoCorrido += t.saldo;
     const venNode = supNode.vendedores[venKey];
-    if(!venNode.clientes[cliKey]) venNode.clientes[cliKey] = {nome:t.nomeCliente||'(Sem cliente)', cnpj:t.cnpj, saldoCorrido:0, titulos:[]};
+    if(!venNode.clientes[cliKey]) venNode.clientes[cliKey] = {nome:t.razao||t.nomeCliente||'(Sem cliente)', cnpj:t.cnpj, saldo:0, saldoCorrido:0, titulos:[]};
+    venNode.clientes[cliKey].saldo += t.saldo;
     venNode.clientes[cliKey].saldoCorrido += t.saldo;
     venNode.clientes[cliKey].titulos.push(t);
   });
@@ -1303,10 +1344,11 @@ function renderTree(){
           <tr>
             <td>${escapeHtml(t.tipo)} ${escapeHtml(t.numero)}${t.parcela?(' / parc. '+escapeHtml(t.parcela)):''}</td>
             <td class="num">${fmtBRL(t.valor)}</td>
+            <td class="num">${fmtBRL(t.saldo)}</td>
             <td>${escapeHtml(t.vencimento)||'—'}</td>
             <td>${escapeHtml(t.portador)||'—'}</td>
-            <td><span class="atraso-badge ${atrasoClass(t.diasAtraso)}">${t.diasAtraso} dias</span></td>
-            <td><button class="btn-copy" onclick="copyTituloClipboard(this)" data-copy="${escapeHtml(copyText)}" title="Copiar dados do título">📋</button></td>
+            <td style="text-align:right;font-family:var(--mono);"><span class="atraso-badge ${atrasoClass(t.diasAtraso)}">${t.diasAtraso} dias</span></td>
+            <td style="text-align:center;"><button class="btn-copy" onclick="copyTituloClipboard(this)" data-copy="${escapeHtml(copyText)}" title="Copiar dados do título">📋</button></td>
           </tr>`;
         }).join('');
 
@@ -1314,11 +1356,23 @@ function renderTree(){
           <details class="tree-node lvl-cli">
             <summary>
               <span class="tn-label">👤 ${escapeHtml(cli.nome)}${cli.cnpj?(' <span style="font-weight:400;color:var(--ink-soft);">('+escapeHtml(cli.cnpj)+')</span>'):''}</span>
-              <span class="tn-meta">${cli.titulos.length} título(s) · ${fmtBRL(cli.saldoCorrido)}</span>
+              <span class="tn-meta">${cli.titulos.length} título(s) · ${fmtBRL(cli.saldo)}</span>
             </summary>
             <div class="tree-children">
               <table class="tree-titulos">
-                <thead><tr><th>Título</th><th>Valor</th><th>Vencimento</th><th>Portador</th><th>Dias de Atraso</th><th></th></tr></thead>
+                <colgroup>
+                  <col class="col-titulo"><col class="col-valor"><col class="col-saldo">
+                  <col class="col-venc"><col class="col-port"><col class="col-atraso"><col class="col-copy">
+                </colgroup>
+                <thead><tr>
+                  <th>Título</th>
+                  <th style="text-align:right;">Valor</th>
+                  <th style="text-align:right;">Saldo</th>
+                  <th>Vencimento</th>
+                  <th>Portador</th>
+                  <th style="text-align:right;">Dias de Atraso</th>
+                  <th></th>
+                </tr></thead>
                 <tbody>${titulosRows}</tbody>
               </table>
             </div>
@@ -1379,7 +1433,7 @@ function exportTable(type, format){
       }));
     } else if(type==='cli'){
       data = rows.map(c=>({
-        'CNPJ': c.cnpj, 'Cliente': c.nomeCliente, 'Filial': c.filial, 'Vendedor': c.nomeVen,
+        'CNPJ': c.cnpj, 'Cliente': c.razao||c.nomeCliente, 'Supervisor': c.supervisor||'—', 'Filial': c.filial, 'Vendedor': c.nomeVen,
         'Qtd. Títulos': c.qtdTitulos, 'Valor': c.valor, 'Saldo': c.saldo, 'Juros': c.juros, 'Saldo Corrido': c.saldoCorrido,
         'Maior Atraso (dias)': c.maxAtraso, 'Status Serasa': c.serasaLabel
       }));
@@ -1432,8 +1486,8 @@ function exportTable(type, format){
       head = [['Código','Vendedor','Supervisor','Filial','Faturamento','Inadimplência','% Inadimplência']];
       body = rows.map(v=>[v.codVen, v.nomeVen, v.supervisor, v.filial, fmtBRL(v.fat), fmtBRL(v.inad), fmtPct(v.pct)]);
     } else if(type==='cli'){
-      head = [['CNPJ','Cliente','Filial','Vendedor','Qtd. Títulos','Valor','Saldo','Juros','Saldo Corrido','Maior Atraso','Serasa']];
-      body = rows.map(c=>[c.cnpj, c.nomeCliente, c.filial, c.nomeVen, c.qtdTitulos, fmtBRL(c.valor), fmtBRL(c.saldo), fmtBRL(c.juros), fmtBRL(c.saldoCorrido), c.maxAtraso, c.serasaLabel]);
+      head = [['CNPJ','Cliente','Supervisor','Filial','Vendedor','Qtd. Títulos','Valor','Saldo','Juros','Saldo Corrido','Maior Atraso','Serasa']];
+      body = rows.map(c=>[c.cnpj, c.razao||c.nomeCliente, c.supervisor||'—', c.filial, c.nomeVen, c.qtdTitulos, fmtBRL(c.valor), fmtBRL(c.saldo), fmtBRL(c.juros), fmtBRL(c.saldoCorrido), c.maxAtraso, c.serasaLabel]);
     } else {
       head = [['Código','Vendedor','Supervisor','Filial','Qtd. Títulos','Qtd. Clientes','Valor','Saldo','Juros','Saldo Corrido','Maior Atraso']];
       body = rows.map(v=>[v.codVen, v.nomeVen, v.supervisor, v.filial, v.qtdTitulos, v.qtdClientes, fmtBRL(v.valor), fmtBRL(v.saldo), fmtBRL(v.juros), fmtBRL(v.saldoCorrido), v.maxAtraso]);
