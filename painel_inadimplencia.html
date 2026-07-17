@@ -1,0 +1,1706 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel de Inadimplência | Vendedores & Supervisores</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+  :root{
+    --purple:#480E65;
+    --purple-deep:#2E0742;
+    --purple-soft:#6E2C92;
+    --green:#00FF77;
+    --green-deep:#00C75E;
+    --bg:#F6F4F9;
+    --card:#FFFFFF;
+    --ink:#241433;
+    --ink-soft:#6B6177;
+    --line:#E7E1EE;
+    --danger:#E0445B;
+    --danger-soft:#FCE9EC;
+    --ok-soft:#E4FBEF;
+    --radius:14px;
+    --shadow:0 6px 24px rgba(72,14,101,0.08);
+    --mono:'JetBrains Mono','SF Mono',Consolas,monospace;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+    overflow-x:hidden;
+  }
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
+
+  header{
+    background:linear-gradient(120deg,var(--purple-deep) 0%, var(--purple) 55%, var(--purple-soft) 100%);
+    color:#fff;
+    padding:28px 32px 80px;
+    position:relative;
+  }
+  header::after{
+    content:"";
+    position:absolute;
+    right:-60px;top:-60px;
+    width:280px;height:280px;
+    border-radius:50%;
+    background:radial-gradient(circle, rgba(0,255,119,0.25), transparent 70%);
+  }
+  .header-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    flex-wrap:wrap;
+    gap:16px;
+    position:relative;
+    z-index:2;
+  }
+  .brand{display:flex;align-items:center;gap:14px;}
+  .brand-mark{
+    width:42px;height:42px;border-radius:10px;
+    background:var(--green);
+    display:flex;align-items:center;justify-content:center;
+    font-weight:800;color:var(--purple-deep);font-size:18px;
+    box-shadow:0 0 0 4px rgba(0,255,119,0.18);
+  }
+  .brand h1{font-size:19px;margin:0;font-weight:700;letter-spacing:0.2px;}
+  .brand span{font-size:12px;color:rgba(255,255,255,0.65);font-weight:500;}
+
+  .upload-zone{
+    display:flex;align-items:center;gap:10px;
+    background:rgba(255,255,255,0.08);
+    border:1px dashed rgba(255,255,255,0.35);
+    padding:10px 16px;border-radius:12px;
+    cursor:pointer;
+    transition:.2s;
+    font-size:13px;
+  }
+  .upload-zone:hover{background:rgba(255,255,255,0.16);border-color:var(--green);}
+  .upload-zone svg{flex-shrink:0;}
+  #fileName{font-weight:600;color:var(--green);}
+
+  .mode-badge{
+    position:relative;z-index:2;
+    display:inline-flex;align-items:center;gap:6px;
+    margin-top:12px;
+    background:rgba(0,255,119,0.12);
+    border:1px solid rgba(0,255,119,0.4);
+    color:var(--green);
+    font-size:11.5px;font-weight:700;letter-spacing:0.3px;text-transform:uppercase;
+    padding:5px 12px;border-radius:20px;
+  }
+  .mode-badge::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--green);}
+
+  main{
+    max-width:1280px;
+    margin:-56px auto 60px;
+    padding:0 24px;
+    position:relative;
+    z-index:3;
+  }
+
+  .kpi-grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:16px;
+    margin-bottom:28px;
+  }
+  .kpi-card{
+    background:var(--card);
+    border-radius:var(--radius);
+    padding:20px 18px;
+    box-shadow:var(--shadow);
+    border:1px solid var(--line);
+    position:relative;
+    overflow:hidden;
+  }
+  .kpi-card .bar{
+    position:absolute;left:0;top:0;bottom:0;width:4px;
+  }
+  .kpi-label{font-size:11.5px;text-transform:uppercase;letter-spacing:0.6px;color:var(--ink-soft);font-weight:700;margin-bottom:8px;}
+  .kpi-value{font-family:var(--mono);font-size:24px;font-weight:700;color:var(--purple-deep);line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .kpi-sub{font-size:12px;color:var(--ink-soft);margin-top:6px;}
+  .kpi-card.green .bar{background:var(--green);}
+  .kpi-card.red .bar{background:var(--danger);}
+  .kpi-card.green .kpi-value{color:var(--green-deep);}
+  .kpi-card.red .kpi-value{color:var(--danger);}
+
+  .filial-card{grid-column:span 5;background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--line);padding:20px 22px;margin-bottom:28px;}
+  .filial-card h3{margin:0 0 14px;font-size:14px;color:var(--purple-deep);text-transform:uppercase;letter-spacing:0.5px;}
+  .filial-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;}
+  .filial-item{
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:12px 14px;
+    background:#FAF8FC;
+  }
+  .filial-item .fi-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+  .filial-item .fi-name{font-weight:700;font-size:13px;color:var(--purple-deep);}
+  .filial-item .fi-pct{font-family:var(--mono);font-weight:700;font-size:13px;}
+  .filial-item .fi-fat{font-family:var(--mono);font-size:12px;color:var(--ink-soft);margin-bottom:6px;}
+  .fi-track{height:6px;border-radius:4px;background:#EDE7F3;overflow:hidden;}
+  .fi-fill{height:100%;border-radius:4px;}
+
+  .panel{
+    background:var(--card);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    border:1px solid var(--line);
+    margin-bottom:28px;
+    overflow:hidden;
+  }
+  .panel-head{
+    padding:18px 22px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:12px;
+    border-bottom:1px solid var(--line);
+  }
+  .panel-head h2{margin:0;font-size:15px;color:var(--purple-deep);font-weight:700;display:flex;align-items:center;gap:8px;}
+  .panel-head h2::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;}
+  .panel-actions{display:flex;gap:8px;flex-wrap:wrap;}
+  .btn{
+    border:none;border-radius:8px;padding:8px 14px;font-size:12.5px;font-weight:600;
+    cursor:pointer;display:flex;align-items:center;gap:6px;transition:.15s;
+  }
+  .btn-xlsx{background:var(--ok-soft);color:#0B7A3E;}
+  .btn-xlsx:hover{background:#cdf6df;}
+  .btn-pdf{background:var(--danger-soft);color:#A8233A;}
+  .btn-pdf:hover{background:#f9d3da;}
+  .btn-neutral{background:#EDE7F3;color:var(--purple);}
+  .btn-neutral:hover{background:#E1D6ED;}
+
+  .filters{
+    padding:16px 22px;
+    display:flex;
+    gap:12px;
+    flex-wrap:wrap;
+    background:#FBFAFD;
+    border-bottom:1px solid var(--line);
+  }
+  .filters input, .filters select{
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:8px 12px;
+    font-size:13px;
+    font-family:inherit;
+    background:#fff;
+    color:var(--ink);
+  }
+  .filters input[type="text"]{flex:1;min-width:180px;}
+  .filters select{min-width:170px;}
+  .filters .pct-filter{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink-soft);}
+  .filters .pct-filter input[type="number"]{width:80px;}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  thead th{
+    position:sticky;top:0;
+    background:var(--purple-deep);
+    color:#fff;
+    text-align:left;
+    padding:10px 14px;
+    font-weight:600;
+    font-size:11.5px;
+    text-transform:uppercase;
+    letter-spacing:0.4px;
+    cursor:pointer;
+    user-select:none;
+  }
+  thead th:hover{background:var(--purple);}
+  tbody td{padding:9px 14px;border-bottom:1px solid var(--line);}
+  tbody tr:hover{background:#FAF7FD;}
+  td.num{font-family:var(--mono);text-align:right;white-space:nowrap;}
+  .pct-badge{
+    font-family:var(--mono);font-weight:700;font-size:12px;
+    padding:3px 8px;border-radius:6px;display:inline-block;min-width:54px;text-align:center;
+  }
+  .pct-low{background:var(--ok-soft);color:#0B7A3E;}
+  .pct-mid{background:#FFF3D6;color:#9A6700;}
+  .pct-high{background:var(--danger-soft);color:#A8233A;}
+  .pct-nofat{background:#FDE7C8;color:#8A4B00;}
+  .badge-serasa{background:var(--danger-soft);color:#A8233A;}
+  .badge-ok{background:var(--ok-soft);color:#0B7A3E;}
+
+  .table-scroll{max-height:520px;overflow:auto;}
+  .table-meta{padding:10px 22px;font-size:12px;color:var(--ink-soft);border-top:1px solid var(--line);background:#FBFAFD;}
+
+  .tree-container{padding:16px 22px;max-height:640px;overflow:auto;}
+  .tree-node{border:1px solid var(--line);border-radius:10px;margin-bottom:8px;overflow:hidden;background:#fff;}
+  .tree-node summary{
+    padding:10px 14px;cursor:pointer;font-weight:700;font-size:13px;color:var(--purple-deep);
+    background:#FAF8FC;display:flex;justify-content:space-between;align-items:center;
+    list-style:none;gap:10px;
+  }
+  .tree-node summary::-webkit-details-marker{display:none;}
+  .tree-node summary::before{content:"▸";color:var(--green-deep);font-size:11px;margin-right:8px;transition:.15s;flex-shrink:0;}
+  .tree-node[open] > summary::before{content:"▾";}
+  .tree-node summary .tn-label{display:flex;align-items:center;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .tree-node summary .tn-meta{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:11.5px;font-weight:700;color:var(--ink-soft);flex-shrink:0;}
+  .tree-children{padding:8px 8px 8px 26px;}
+  .tree-node.lvl-sup{border-color:var(--purple-soft);}
+  .tree-node.lvl-sup > summary{background:#F3ECF8;}
+  .tree-node.lvl-ven > summary{background:#FAF8FC;}
+  .tree-node.lvl-cli > summary{background:#FFFFFF;border-bottom:1px solid var(--line);}
+  .tree-titulos{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:4px;table-layout:fixed;}
+  .tree-titulos th{
+    text-align:left;padding:6px 10px;font-size:10.5px;text-transform:uppercase;letter-spacing:0.3px;
+    color:#FFFFFF;border-bottom:1px solid var(--line);font-weight:700;overflow:hidden;
+  }
+  .tree-titulos td{padding:6px 10px;border-bottom:1px solid var(--line);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .tree-titulos td.num{font-family:var(--mono);text-align:right;white-space:nowrap;}
+  .tree-titulos col.col-titulo{width:28%;}
+  .tree-titulos col.col-valor{width:11%;}
+  .tree-titulos col.col-saldo{width:11%;}
+  .tree-titulos col.col-venc{width:11%;}
+  .tree-titulos col.col-port{width:11%;}
+  .tree-titulos col.col-atraso{width:13%;}
+  .tree-titulos col.col-copy{width:5%;}
+  .atraso-badge{
+    font-family:var(--mono);font-weight:700;font-size:11px;padding:2px 7px;border-radius:6px;display:inline-block;
+  }
+  .btn-copy{
+    border:none;background:#EDE7F3;color:var(--purple);cursor:pointer;
+    border-radius:6px;padding:3px 7px;font-size:12px;line-height:1;transition:.15s;
+  }
+  .btn-copy:hover{background:#E1D6ED;}
+
+  .empty-state{
+    padding:80px 30px;text-align:center;color:var(--ink-soft);
+  }
+  .empty-state svg{margin-bottom:16px;opacity:0.5;}
+  .empty-state h3{color:var(--purple-deep);margin:0 0 6px;font-size:16px;}
+  .empty-state p{margin:0;font-size:13px;max-width:380px;margin:0 auto;}
+
+  .hidden{display:none !important;}
+
+  @media (max-width: 980px){
+    .kpi-grid{grid-template-columns:repeat(2,1fr);}
+    .filial-card{grid-column:span 2;}
+    header{padding:22px 18px 70px;}
+    main{margin-top:-50px;padding:0 14px;}
+  }
+  @media (max-width: 560px){
+    .kpi-grid{grid-template-columns:1fr;}
+    .filial-card{grid-column:span 1;}
+    .header-top{flex-direction:column;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-top">
+    <div class="brand">
+      <div class="brand-mark">%</div>
+      <div>
+        <h1>Painel de Inadimplência</h1>
+        <span>Vendedores &amp; Supervisores — síntese comercial</span>
+        <span style="display:inline-block;margin-top:6px;background:rgba(0,255,119,0.15);border:1px solid rgba(0,255,119,0.35);color:var(--green);font-size:10px;font-weight:700;letter-spacing:0.5px;padding:2px 8px;border-radius:20px;">v1.2</span>
+      </div>
+    </div>
+    <label class="upload-zone" id="uploadLabel">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <span id="uploadText">Importar planilha (.xlsx)</span>
+      <span id="fileName"></span>
+      <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none;">
+    </label>
+  </div>
+  <div style="position:relative;z-index:2;display:flex;gap:10px;flex-wrap:wrap;">
+    <div id="modeBadge" class="mode-badge hidden"></div>
+    <div id="periodoBadge" class="mode-badge hidden"></div>
+    <div id="periodoFatBadge" class="mode-badge hidden"></div>
+    <div id="periodoInadBadge" class="mode-badge hidden"></div>
+  </div>
+</header>
+
+<main>
+  <div id="emptyState" class="empty-state panel">
+    <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#480E65" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
+    <h3>Nenhuma planilha carregada</h3>
+    <p>Clique em "Importar planilha (.xlsx)" no topo e selecione o arquivo de inadimplência — sintético ou detalhado — para gerar o painel automaticamente.</p>
+  </div>
+
+  <div id="dashboardContent" class="hidden">
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="bar" style="background:var(--purple);"></div>
+        <div class="kpi-label">Faturamento Total</div>
+        <div class="kpi-value" id="kpiFaturamento">R$ 0</div>
+        <div class="kpi-sub" id="kpiFaturamentoSub">—</div>
+      </div>
+      <div class="kpi-card red"><div class="bar"></div>
+        <div class="kpi-label">Inadimplência Total</div>
+        <div class="kpi-value" id="kpiInadimplencia">R$ 0</div>
+        <div class="kpi-sub" id="kpiInadimplenciaSub">—</div>
+      </div>
+      <div class="kpi-card" id="kpiPercCard"><div class="bar" style="background:var(--green);"></div>
+        <div class="kpi-label">% Inadimplência</div>
+        <div class="kpi-value" id="kpiPerc">0%</div>
+        <div class="kpi-sub" id="kpiPercSub">Inadimplência / Faturamento</div>
+      </div>
+      <div class="kpi-card"><div class="bar" style="background:var(--purple-soft);"></div>
+        <div class="kpi-label">Filiais</div>
+        <div class="kpi-value" id="kpiFiliais">0</div>
+        <div class="kpi-sub" id="kpiFiliaisSub">—</div>
+      </div>
+      <div class="kpi-card"><div class="bar" style="background:var(--purple-soft);"></div>
+        <div class="kpi-label">Vendedores</div>
+        <div class="kpi-value" id="kpiVendedores">0</div>
+        <div class="kpi-sub" id="kpiVendedoresSub">—</div>
+      </div>
+
+      <div class="filial-card">
+        <h3>Faturamento &amp; Inadimplência por Filial</h3>
+        <div class="filial-list" id="filialList"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Supervisores</h2>
+        <div class="panel-actions">
+          <button class="btn btn-xlsx" onclick="exportTable('sup','xlsx')">⬇ XLSX</button>
+          <button class="btn btn-pdf" onclick="exportTable('sup','pdf')">⬇ PDF</button>
+        </div>
+      </div>
+      <div class="filters">
+        <input type="text" id="supSearch" placeholder="Filtrar por nome ou código do supervisor...">
+        <div class="pct-filter">
+          % inadimplência entre
+          <input type="number" id="supPctMin" placeholder="0" step="0.1">
+          e
+          <input type="number" id="supPctMax" placeholder="100" step="0.1">
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table id="supTable">
+          <thead><tr>
+            <th data-key="codSup">Cód.</th>
+            <th data-key="nomeSup">Supervisor</th>
+            <th data-key="filial">Filial</th>
+            <th data-key="fat">Faturamento</th>
+            <th data-key="inad">Inadimplência</th>
+            <th data-key="pct">% Inadimpl.</th>
+          </tr></thead>
+          <tbody id="supTbody"></tbody>
+        </table>
+      </div>
+      <div class="table-meta" id="supMeta"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Vendedores</h2>
+        <div class="panel-actions">
+          <button class="btn btn-xlsx" onclick="exportTable('ven','xlsx')">⬇ XLSX</button>
+          <button class="btn btn-pdf" onclick="exportTable('ven','pdf')">⬇ PDF</button>
+        </div>
+      </div>
+      <div class="filters">
+        <input type="text" id="venSearch" placeholder="Filtrar por nome ou código do vendedor...">
+        <select id="venSupFilter"><option value="">Todos os supervisores</option></select>
+        <select id="venFilialFilter"><option value="">Todas as filiais</option></select>
+        <div class="pct-filter">
+          % inadimplência entre
+          <input type="number" id="venPctMin" placeholder="0" step="0.1">
+          e
+          <input type="number" id="venPctMax" placeholder="100" step="0.1">
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table id="venTable">
+          <thead><tr>
+            <th data-key="codVen">Cód.</th>
+            <th data-key="nomeVen">Vendedor</th>
+            <th data-key="supervisor">Supervisor</th>
+            <th data-key="filial">Filial</th>
+            <th data-key="fat">Faturamento</th>
+            <th data-key="inad">Inadimplência</th>
+            <th data-key="pct">% Inadimpl.</th>
+          </tr></thead>
+          <tbody id="venTbody"></tbody>
+        </table>
+      </div>
+      <div class="table-meta" id="venMeta"></div>
+    </div>
+  </div>
+
+  <div id="detailedContent" class="hidden">
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="bar" style="background:var(--purple);"></div>
+        <div class="kpi-label">Saldo</div>
+        <div class="kpi-value" id="kpiSaldoCorrido">R$ 0</div>
+        <div class="kpi-sub" id="kpiSaldoCorridoSub">—</div>
+      </div>
+      <div class="kpi-card red"><div class="bar"></div>
+        <div class="kpi-label">Juros Acumulados</div>
+        <div class="kpi-value" id="kpiJuros">R$ 0</div>
+        <div class="kpi-sub" id="kpiJurosSub">—</div>
+      </div>
+      <div class="kpi-card"><div class="bar" style="background:var(--purple-soft);"></div>
+        <div class="kpi-label">Títulos em Aberto</div>
+        <div class="kpi-value" id="kpiQtdTitulos">0</div>
+        <div class="kpi-sub" id="kpiQtdTitulosSub">—</div>
+      </div>
+      <div class="kpi-card"><div class="bar" style="background:var(--purple-soft);"></div>
+        <div class="kpi-label">Clientes Inadimplentes</div>
+        <div class="kpi-value" id="kpiQtdClientes">0</div>
+        <div class="kpi-sub" id="kpiQtdClientesSub">—</div>
+      </div>
+      <div class="kpi-card" id="kpiSerasaCard"><div class="bar" style="background:var(--green);"></div>
+        <div class="kpi-label">% em Serasa</div>
+        <div class="kpi-value" id="kpiSerasaPerc">0%</div>
+        <div class="kpi-sub" id="kpiSerasaSub">dos títulos em aberto</div>
+      </div>
+
+      <div class="filial-card">
+        <h3>Aging da Inadimplência (dias de atraso)</h3>
+        <div class="filial-list" id="agingList"></div>
+      </div>
+
+      <div class="filial-card">
+        <h3>Inadimplência por Portador</h3>
+        <div class="filial-list" id="portadorList"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>PECLD — Perda Estimada com Créditos de Liquidação Duvidosa</h2>
+        <div class="panel-actions">
+          <button class="btn btn-xlsx" onclick="exportTable('pecld','xlsx')">⬇ XLSX</button>
+          <button class="btn btn-pdf" onclick="exportTable('pecld','pdf')">⬇ PDF</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;padding:20px 22px;border-bottom:1px solid var(--line);">
+        <div class="kpi-card" style="margin:0;"><div class="bar" style="background:var(--danger);"></div>
+          <div class="kpi-label">Provisão Total PECLD</div>
+          <div class="kpi-value" id="pecldTotal" style="font-size:22px;">R$ 0</div>
+          <div class="kpi-sub" id="pecldTotalSub">—</div>
+        </div>
+        <div class="kpi-card" style="margin:0;"><div class="bar" style="background:#E8A800;"></div>
+          <div class="kpi-label">% PECLD sobre Saldo Total</div>
+          <div class="kpi-value" id="pecldPerc" style="font-size:22px;">0%</div>
+          <div class="kpi-sub">provisão / saldo base total</div>
+        </div>
+        <div class="kpi-card red" style="margin:0;"><div class="bar"></div>
+          <div class="kpi-label">Faixa de Maior Risco</div>
+          <div class="kpi-value" id="pecldMaiorRisco" style="font-size:16px;white-space:normal;line-height:1.3;">—</div>
+          <div class="kpi-sub" id="pecldMaiorRiscoSub">—</div>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table id="pecldTable">
+          <thead><tr>
+            <th>Faixa</th>
+            <th style="text-align:right;">Qtd. Títulos</th>
+            <th style="text-align:right;">Saldo Base</th>
+            <th style="text-align:right;">Taxa</th>
+            <th style="text-align:right;">Provisão</th>
+            <th style="text-align:right;">% da Provisão Total</th>
+          </tr></thead>
+          <tbody id="pecldTbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Valor, Saldo, Juros e Saldo Corrido por Filial</h2>
+      </div>
+      <div class="table-scroll">
+        <table id="filialDetTable">
+          <thead><tr>
+            <th>Filial</th>
+            <th style="text-align:right;">Qtd. Títulos</th>
+            <th style="text-align:right;">Valor</th>
+            <th style="text-align:right;">Saldo</th>
+            <th style="text-align:right;">Juros</th>
+            <th style="text-align:right;">Saldo Corrido</th>
+          </tr></thead>
+          <tbody id="filialDetTbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Clientes Inadimplentes</h2>
+        <div class="panel-actions">
+          <button class="btn btn-xlsx" onclick="exportTable('cli','xlsx')">⬇ XLSX</button>
+          <button class="btn btn-pdf" onclick="exportTable('cli','pdf')">⬇ PDF</button>
+        </div>
+      </div>
+      <div class="filters">
+        <input type="text" id="cliSearch" placeholder="Filtrar por nome do cliente ou CNPJ...">
+        <select id="cliFilialFilter"><option value="">Todas as filiais</option></select>
+        <select id="cliSupFilter"><option value="">Todos os supervisores</option></select>
+        <select id="cliVenFilter"><option value="">Todos os vendedores</option></select>
+        <select id="cliSerasaFilter">
+          <option value="">Todos os status Serasa</option>
+          <option value="serasa">Incluído Serasa</option>
+          <option value="nada">Nada Consta</option>
+        </select>
+      </div>
+      <div class="table-scroll">
+        <table id="cliTable">
+          <thead><tr>
+            <th data-key="cnpj">CNPJ</th>
+            <th data-key="nomeCliente">Cliente</th>
+            <th data-key="supervisor">Supervisor</th>
+            <th data-key="filial">Filial</th>
+            <th data-key="nomeVen">Vendedor</th>
+            <th data-key="qtdTitulos">Qtd. Títulos</th>
+            <th data-key="valor">Valor</th>
+            <th data-key="saldo">Saldo</th>
+            <th data-key="juros">Juros</th>
+            <th data-key="saldoCorrido">Saldo Corrido</th>
+            <th data-key="maxAtraso">Maior Atraso (dias)</th>
+            <th data-key="portador">Portador</th>
+            <th data-key="serasaLabel">Serasa</th>
+          </tr></thead>
+          <tbody id="cliTbody"></tbody>
+        </table>
+      </div>
+      <div class="table-meta" id="cliMeta"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Vendedores (Detalhado)</h2>
+        <div class="panel-actions">
+          <button class="btn btn-xlsx" onclick="exportTable('venDet','xlsx')">⬇ XLSX</button>
+          <button class="btn btn-pdf" onclick="exportTable('venDet','pdf')">⬇ PDF</button>
+        </div>
+      </div>
+      <div class="filters">
+        <input type="text" id="venDetSearch" placeholder="Filtrar por nome ou código do vendedor...">
+        <select id="venDetSupFilter"><option value="">Todos os supervisores</option></select>
+        <select id="venDetFilialFilter"><option value="">Todas as filiais</option></select>
+      </div>
+      <div class="table-scroll">
+        <table id="venDetTable">
+          <thead><tr>
+            <th data-key="codVen">Cód.</th>
+            <th data-key="nomeVen">Vendedor</th>
+            <th data-key="supervisor">Supervisor</th>
+            <th data-key="filial">Filial</th>
+            <th data-key="qtdTitulos">Qtd. Títulos</th>
+            <th data-key="qtdClientes">Qtd. Clientes</th>
+            <th data-key="valor">Valor</th>
+            <th data-key="saldo">Saldo</th>
+            <th data-key="juros">Juros</th>
+            <th data-key="saldoCorrido">Saldo Corrido</th>
+            <th data-key="maxAtraso">Maior Atraso (dias)</th>
+          </tr></thead>
+          <tbody id="venDetTbody"></tbody>
+        </table>
+      </div>
+      <div class="table-meta" id="venDetMeta"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Árvore de Inadimplência</h2>
+        <div class="panel-actions">
+          <button class="btn btn-neutral" id="treeExpandAll" onclick="toggleAllTree(true)">Expandir tudo</button>
+          <button class="btn btn-neutral" id="treeCollapseAll" onclick="toggleAllTree(false)">Recolher tudo</button>
+        </div>
+      </div>
+      <div class="filters">
+        <input type="text" id="treeSearch" placeholder="Filtrar árvore por supervisor, vendedor ou cliente...">
+      </div>
+      <div id="treeContainer" class="tree-container"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+let rawRows = [];
+let vendedores = [];
+let supervisores = [];
+let sortState = {sup:{key:'inad',dir:-1}, ven:{key:'inad',dir:-1}};
+
+const fmtBRL = v => 'R$ ' + (v||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+const fmtPct = v => v===Infinity ? 'Sem faturamento' : (v||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) + '%';
+
+function pctClass(p){
+  if(p === Infinity) return 'pct-nofat';
+  if(p < 0.5) return 'pct-low';
+  if(p < 1.5) return 'pct-mid';
+  return 'pct-high';
+}
+
+function fitNumberCells(tableId){
+  const cells = document.querySelectorAll('#'+tableId+' td.num');
+  cells.forEach(td=>{
+    td.style.fontSize = '';
+    let size = 13;
+    while(td.scrollWidth > td.clientWidth && size > 9){
+      size -= 0.5;
+      td.style.fontSize = size+'px';
+    }
+  });
+}
+
+function fitKpiValue(elId){
+  const el = document.getElementById(elId);
+  if(!el) return;
+  el.style.fontSize = '';
+  let size = 24;
+  while(el.scrollWidth > el.clientWidth && size > 9){
+    size -= 0.5;
+    el.style.fontSize = size+'px';
+  }
+}
+
+function numCompare(va, vb){
+  if(va === vb) return 0;
+  if(va === Infinity) return 1;
+  if(vb === Infinity) return -1;
+  return va - vb;
+}
+
+document.getElementById('fileInput').addEventListener('change', handleFile);
+
+function handleFile(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  document.getElementById('fileName').textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = function(evt){
+    const data = new Uint8Array(evt.target.result);
+    const wb = XLSX.read(data, {type:'array'});
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const json = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
+    const headerRow = (json[0]||[]).map(h=>String(h??'').trim().toLowerCase());
+    const isDetailed = headerRow.includes('saldo corrido') && headerRow.includes('dias de atraso');
+    document.getElementById('dashboardContent').classList.add('hidden');
+    document.getElementById('detailedContent').classList.add('hidden');
+    document.getElementById('emptyState').classList.add('hidden');
+    const badge = document.getElementById('modeBadge');
+    badge.classList.remove('hidden');
+    document.getElementById('periodoBadge').classList.add('hidden');
+    document.getElementById('periodoFatBadge').classList.add('hidden');
+    document.getElementById('periodoInadBadge').classList.add('hidden');
+    if(isDetailed){
+      badge.textContent = 'Modo: Detalhado';
+      processDetailedRows(json);
+    } else {
+      badge.textContent = 'Modo: Sintético';
+      processRows(json);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function parseExcelDate(v){
+  if(v instanceof Date) return v;
+  if(typeof v === 'number'){
+    const epoch = new Date(1899,11,30);
+    return new Date(epoch.getTime() + v*86400000);
+  }
+  if(typeof v === 'string'){
+    const m = v.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+    if(m) return new Date(+m[3], +m[2]-1, +m[1]);
+  }
+  return null;
+}
+
+function fmtDateBR(d){
+  return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
+}
+
+function processRows(json){
+  rawRows = [];
+  let fatInicio=[], fatFim=[], inadInicio=[], inadFim=[];
+  for(let i=1;i<json.length;i++){
+    const r = json[i];
+    if(!r || r.every(c=>c===null||c==='')) continue;
+    const filial = String(r[0]??'').trim();
+    const codVen = String(r[1]??'').trim();
+    const nomeVen = String(r[2]??'').trim();
+    const codSup = String(r[3]??'').trim();
+    const nomeSup = String(r[4]??'').trim();
+    const codGr = String(r[5]??'').trim();
+    const gerente = String(r[6]??'').trim();
+    const inad = parseFloat(r[7])||0;       // coluna H
+    const fat = parseFloat(r[8])||0;        // coluna I
+    if(!nomeVen && !codVen) continue;
+    rawRows.push({filial, codVen, nomeVen, codSup, nomeSup, codGr, gerente, inad, fat});
+    const dFatIni = parseExcelDate(r[10]);
+    const dFatFim = parseExcelDate(r[11]);
+    const dInadIni = parseExcelDate(r[12]);
+    const dInadFim = parseExcelDate(r[13]);
+    if(dFatIni) fatInicio.push(dFatIni);
+    if(dFatFim) fatFim.push(dFatFim);
+    if(dInadIni) inadInicio.push(dInadIni);
+    if(dInadFim) inadFim.push(dInadFim);
+  }
+  buildVendedores();
+  buildSupervisores();
+  populateVenFilters();
+  renderAll();
+
+  const fatBadge = document.getElementById('periodoFatBadge');
+  const inadBadge = document.getElementById('periodoInadBadge');
+  if(fatInicio.length && fatFim.length){
+    fatBadge.textContent = `Faturamento: ${fmtDateBR(new Date(Math.min(...fatInicio)))} a ${fmtDateBR(new Date(Math.max(...fatFim)))}`;
+    fatBadge.classList.remove('hidden');
+  }
+  if(inadInicio.length && inadFim.length){
+    inadBadge.textContent = `Inadimplência: ${fmtDateBR(new Date(Math.min(...inadInicio)))} a ${fmtDateBR(new Date(Math.max(...inadFim)))}`;
+    inadBadge.classList.remove('hidden');
+  }
+
+  document.getElementById('dashboardContent').classList.remove('hidden');
+}
+
+function buildVendedores(){
+  vendedores = rawRows.map(r=>({
+    codVen:r.codVen, nomeVen:r.nomeVen, supervisor:r.nomeSup, filial:r.filial,
+    fat:r.fat, inad:r.inad, pct: r.fat>0 ? (r.inad/r.fat*100) : (r.inad>0 ? Infinity : 0)
+  }));
+}
+
+function populateVenFilters(){
+  const supSel = document.getElementById('venSupFilter');
+  const filSel = document.getElementById('venFilialFilter');
+  const supervisoresUnicos = [...new Set(vendedores.map(v=>v.supervisor))].sort((a,b)=>a.localeCompare(b));
+  const filiaisUnicas = [...new Set(vendedores.map(v=>v.filial))].sort((a,b)=>a.localeCompare(b));
+  supSel.innerHTML = '<option value="">Todos os supervisores</option>' + supervisoresUnicos.map(s=>`<option value="${s}">${s}</option>`).join('');
+  filSel.innerHTML = '<option value="">Todas as filiais</option>' + filiaisUnicas.map(f=>`<option value="${f}">Filial ${f}</option>`).join('');
+}
+
+function buildSupervisores(){
+  const map = {};
+  rawRows.forEach(r=>{
+    const key = r.codSup+'|'+r.nomeSup+'|'+r.filial;
+    if(!map[key]) map[key] = {codSup:r.codSup, nomeSup:r.nomeSup, filial:r.filial, fat:0, inad:0};
+    map[key].fat += r.fat;
+    map[key].inad += r.inad;
+  });
+  supervisores = Object.values(map).map(s=>({...s, pct: s.fat>0 ? (s.inad/s.fat*100) : (s.inad>0 ? Infinity : 0)}));
+}
+
+function renderAll(){
+  renderKpis();
+  renderFiliais();
+  renderTable('sup');
+  renderTable('ven');
+}
+
+function renderKpis(){
+  const totalFat = rawRows.reduce((a,r)=>a+r.fat,0);
+  const totalInad = rawRows.reduce((a,r)=>a+r.inad,0);
+  const pct = totalFat>0 ? (totalInad/totalFat*100) : 0;
+  const filiais = new Set(rawRows.map(r=>r.filial));
+  const vens = new Set(rawRows.map(r=>r.codVen+r.nomeVen));
+
+  document.getElementById('kpiFaturamento').textContent = fmtBRL(totalFat);
+  document.getElementById('kpiInadimplencia').textContent = fmtBRL(totalInad);
+  document.getElementById('kpiPerc').textContent = fmtPct(pct);
+  document.getElementById('kpiFiliais').textContent = filiais.size;
+  document.getElementById('kpiVendedores').textContent = vens.size;
+  document.getElementById('kpiFaturamentoSub').textContent = rawRows.length + ' lançamentos';
+  document.getElementById('kpiInadimplenciaSub').textContent = pct.toFixed(2)+'% do faturamento';
+  document.getElementById('kpiFiliaisSub').textContent = 'unidades ativas';
+  document.getElementById('kpiVendedoresSub').textContent = 'vendedores únicos';
+
+  const card = document.getElementById('kpiPercCard');
+  card.className = 'kpi-card' + (pct>=1.5?' red':'');
+
+  setTimeout(()=>{ fitKpiValue('kpiFaturamento'); fitKpiValue('kpiInadimplencia'); }, 0);
+}
+
+function renderFiliais(){
+  const map = {};
+  rawRows.forEach(r=>{
+    if(!map[r.filial]) map[r.filial] = {fat:0, inad:0};
+    map[r.filial].fat += r.fat;
+    map[r.filial].inad += r.inad;
+  });
+  const list = Object.entries(map).map(([filial, v])=>({filial, ...v, pct: v.fat>0?(v.inad/v.fat*100):0}));
+  list.sort((a,b)=>b.fat-a.fat);
+  const container = document.getElementById('filialList');
+  container.innerHTML = list.map(f=>{
+    const cls = f.pct<0.5?'pct-low':(f.pct<1.5?'pct-mid':'pct-high');
+    const barColor = f.pct<0.5?'var(--green-deep)':(f.pct<1.5?'#E8A800':'var(--danger)');
+    const width = Math.min(f.pct/3*100, 100);
+    return `<div class="filial-item">
+      <div class="fi-top">
+        <span class="fi-name">Filial ${f.filial}</span>
+        <span class="fi-pct pct-badge ${cls}">${fmtPct(f.pct)}</span>
+      </div>
+      <div class="fi-fat">${fmtBRL(f.fat)} faturado · ${fmtBRL(f.inad)} inadimplente</div>
+      <div class="fi-track"><div class="fi-fill" style="width:${width}%;background:${barColor};"></div></div>
+    </div>`;
+  }).join('');
+}
+
+function getFilteredSup(){
+  const search = document.getElementById('supSearch').value.trim().toLowerCase();
+  const min = parseFloat(document.getElementById('supPctMin').value);
+  const max = parseFloat(document.getElementById('supPctMax').value);
+  let rows = supervisores.filter(s=>{
+    if(search && !(s.nomeSup.toLowerCase().includes(search) || s.codSup.toLowerCase().includes(search))) return false;
+    if(!isNaN(min) && s.pct < min) return false;
+    if(!isNaN(max) && s.pct > max) return false;
+    return true;
+  });
+  const {key,dir} = sortState.sup;
+  rows.sort((a,b)=>{
+    let va=a[key], vb=b[key];
+    if(typeof va === 'string') return va.localeCompare(vb)*dir;
+    return numCompare(va,vb)*dir;
+  });
+  return rows;
+}
+
+function getFilteredVen(){
+  const search = document.getElementById('venSearch').value.trim().toLowerCase();
+  const min = parseFloat(document.getElementById('venPctMin').value);
+  const max = parseFloat(document.getElementById('venPctMax').value);
+  const supFilter = document.getElementById('venSupFilter').value;
+  const filialFilter = document.getElementById('venFilialFilter').value;
+  let rows = vendedores.filter(v=>{
+    if(search && !(v.nomeVen.toLowerCase().includes(search) || v.codVen.toLowerCase().includes(search))) return false;
+    if(!isNaN(min) && v.pct < min) return false;
+    if(!isNaN(max) && v.pct > max) return false;
+    if(supFilter && v.supervisor !== supFilter) return false;
+    if(filialFilter && v.filial !== filialFilter) return false;
+    return true;
+  });
+  const {key,dir} = sortState.ven;
+  rows.sort((a,b)=>{
+    let va=a[key], vb=b[key];
+    if(typeof va === 'string') return va.localeCompare(vb)*dir;
+    return numCompare(va,vb)*dir;
+  });
+  return rows;
+}
+
+function renderTable(type){
+  if(type==='sup'){
+    const rows = getFilteredSup();
+    const tbody = document.getElementById('supTbody');
+    tbody.innerHTML = rows.map(s=>`<tr>
+      <td>${s.codSup}</td><td>${s.nomeSup}</td><td>${s.filial}</td>
+      <td class="num">${fmtBRL(s.fat)}</td><td class="num">${fmtBRL(s.inad)}</td>
+      <td><span class="pct-badge ${pctClass(s.pct)}">${fmtPct(s.pct)}</span></td>
+    </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--ink-soft);padding:24px;">Nenhum resultado encontrado para os filtros aplicados.</td></tr>';
+    document.getElementById('supMeta').textContent = `${rows.length} de ${supervisores.length} supervisores exibidos`;
+    setTimeout(()=>fitNumberCells('supTable'), 0);
+  } else {
+    const rows = getFilteredVen();
+    const tbody = document.getElementById('venTbody');
+    tbody.innerHTML = rows.map(v=>`<tr>
+      <td>${v.codVen}</td><td>${v.nomeVen}</td><td>${v.supervisor}</td><td>${v.filial}</td>
+      <td class="num">${fmtBRL(v.fat)}</td><td class="num">${fmtBRL(v.inad)}</td>
+      <td><span class="pct-badge ${pctClass(v.pct)}">${fmtPct(v.pct)}</span></td>
+    </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--ink-soft);padding:24px;">Nenhum resultado encontrado para os filtros aplicados.</td></tr>';
+    document.getElementById('venMeta').textContent = `${rows.length} de ${vendedores.length} vendedores exibidos`;
+    setTimeout(()=>fitNumberCells('venTable'), 0);
+  }
+}
+
+document.querySelectorAll('#supTable thead th').forEach(th=>{
+  th.addEventListener('click', ()=>{
+    const key = th.dataset.key;
+    if(sortState.sup.key===key) sortState.sup.dir *= -1;
+    else { sortState.sup.key = key; sortState.sup.dir = 1; }
+    renderTable('sup');
+  });
+});
+document.querySelectorAll('#venTable thead th').forEach(th=>{
+  th.addEventListener('click', ()=>{
+    const key = th.dataset.key;
+    if(sortState.ven.key===key) sortState.ven.dir *= -1;
+    else { sortState.ven.key = key; sortState.ven.dir = 1; }
+    renderTable('ven');
+  });
+});
+
+['supSearch','supPctMin','supPctMax'].forEach(id=>document.getElementById(id).addEventListener('input', ()=>renderTable('sup')));
+['venSearch','venPctMin','venPctMax','venSupFilter','venFilialFilter'].forEach(id=>document.getElementById(id).addEventListener('input', ()=>renderTable('ven')));
+document.getElementById('venSupFilter').addEventListener('change', ()=>renderTable('ven'));
+document.getElementById('venFilialFilter').addEventListener('change', ()=>renderTable('ven'));
+
+// ===================== MODO DETALHADO =====================
+let titulos = [];
+let clientes = [];
+let vendedoresDet = [];
+let sortStateDet = {cli:{key:'saldoCorrido',dir:-1}, venDet:{key:'saldoCorrido',dir:-1}};
+
+function isSerasaIncluido(obs){
+  const o = (obs||'').toLowerCase();
+  return o.includes('serasa') && !o.includes('nada consta');
+}
+
+function processDetailedRows(json){
+  titulos = [];
+  for(let i=1;i<json.length;i++){
+    const r = json[i];
+    if(!r || r.every(c=>c===null||c==='')) continue;
+    const filial = String(r[0]??'').trim();
+    const codVen = String(r[1]??'').trim();
+    const nomeVen = String(r[2]??'').trim();
+    const codSup = String(r[3]??'').trim();
+    const nomeSup = String(r[4]??'').trim();
+    const codGer = String(r[5]??'').trim();
+    const nomeGer = String(r[6]??'').trim();
+    const cnpj = String(r[7]??'').trim();
+    const cliente = String(r[8]??'').trim();
+    const loja = String(r[9]??'').trim();
+    const nomeCliente = String(r[10]??'').trim();
+    const razao = String(r[11]??'').trim();
+    const tipo = String(r[12]??'').trim();
+    const numero = String(r[14]??'').trim();
+    const parcela = String(r[15]??'').trim();
+    const portador = String(r[16]??'').trim();
+    const vencimentoRaw = r[18];
+    const vencimentoDate = parseExcelDate(vencimentoRaw);
+    const vencimento = vencimentoDate ? fmtDateBR(vencimentoDate) : String(vencimentoRaw??'').trim();
+    const valor = parseFloat(r[19])||0;
+    const saldo = parseFloat(r[20])||0;
+    const juros = parseFloat(r[21])||0;
+    const saldoCorrido = parseFloat(r[22])||0;
+    const diasAtraso = parseFloat(r[23])||0;
+    const serasa = String(r[24]??'').trim();
+    if(!nomeVen && !codVen && !cnpj) continue;
+    titulos.push({filial, codVen, nomeVen, codSup, nomeSup, codGer, nomeGer, cnpj, cliente, loja, nomeCliente, razao, tipo, numero, parcela, portador, vencimento, vencimentoDate, valor, saldo, juros, saldoCorrido, diasAtraso, serasa});
+  }
+  buildClientes();
+  buildVendedoresDet();
+  populateDetFilters();
+  renderAllDetailed();
+  renderPeriodoBadge();
+  document.getElementById('detailedContent').classList.remove('hidden');
+}
+
+function renderPeriodoBadge(){
+  const datas = titulos.map(t=>t.vencimentoDate).filter(Boolean);
+  const badge = document.getElementById('periodoBadge');
+  if(datas.length===0){ badge.classList.add('hidden'); return; }
+  const minData = new Date(Math.min(...datas));
+  const maxData = new Date(Math.max(...datas));
+  const fmtDate = fmtDateBR;
+  badge.textContent = `Período (Vencimento): ${fmtDate(minData)} a ${fmtDate(maxData)}`;
+  badge.classList.remove('hidden');
+}
+
+function buildClientes(){
+  const map = {};
+  titulos.forEach(t=>{
+    const key = t.cnpj+'|'+t.loja+'|'+t.codVen+'|'+t.codSup;
+    if(!map[key]) map[key] = {cnpj:t.cnpj, nomeCliente:t.nomeCliente, razao:t.razao, filial:t.filial, codVen:t.codVen, nomeVen:t.nomeVen, supervisor:t.nomeSup, qtdTitulos:0, valor:0, saldo:0, saldoCorrido:0, juros:0, maxAtraso:0, serasaFlag:false, portadorMap:{}};
+    if(t.portador){ map[key].portadorMap[t.portador] = (map[key].portadorMap[t.portador]||0)+1; }
+    map[key].qtdTitulos += 1;
+    map[key].valor += t.valor;
+    map[key].saldo += t.saldo;
+    map[key].saldoCorrido += t.saldoCorrido;
+    map[key].juros += t.juros;
+    map[key].maxAtraso = Math.max(map[key].maxAtraso, t.diasAtraso);
+    if(isSerasaIncluido(t.serasa)) map[key].serasaFlag = true;
+  });
+  clientes = Object.values(map).map(c=>{
+    const portador = Object.keys(c.portadorMap).sort((a,b)=>c.portadorMap[b]-c.portadorMap[a])[0] || '—';
+    return {...c, portador, serasaLabel: c.serasaFlag ? 'Incluído Serasa' : 'Nada Consta'};
+  });
+}
+
+function buildVendedoresDet(){
+  const map = {};
+  titulos.forEach(t=>{
+    const key = t.codVen+'|'+t.nomeVen+'|'+t.filial;
+    if(!map[key]) map[key] = {codVen:t.codVen, nomeVen:t.nomeVen, supervisor:t.nomeSup, filial:t.filial, qtdTitulos:0, clientesSet:new Set(), valor:0, saldo:0, saldoCorrido:0, juros:0, maxAtraso:0};
+    map[key].qtdTitulos += 1;
+    map[key].clientesSet.add(t.cnpj+'|'+t.loja);
+    map[key].valor += t.valor;
+    map[key].saldo += t.saldo;
+    map[key].saldoCorrido += t.saldoCorrido;
+    map[key].juros += t.juros;
+    map[key].maxAtraso = Math.max(map[key].maxAtraso, t.diasAtraso);
+  });
+  vendedoresDet = Object.values(map).map(v=>({...v, qtdClientes:v.clientesSet.size}));
+}
+
+function populateDetFilters(){
+  const filiaisUnicas = [...new Set(titulos.map(t=>t.filial))].sort((a,b)=>a.localeCompare(b));
+  const vendedoresUnicos = [...new Set(titulos.map(t=>t.nomeVen))].filter(Boolean).sort((a,b)=>a.localeCompare(b));
+  const supervisoresUnicos = [...new Set(titulos.map(t=>t.nomeSup))].filter(Boolean).sort((a,b)=>a.localeCompare(b));
+
+  document.getElementById('cliFilialFilter').innerHTML = '<option value="">Todas as filiais</option>' + filiaisUnicas.map(f=>`<option value="${f}">Filial ${f}</option>`).join('');
+  document.getElementById('cliSupFilter').innerHTML = '<option value="">Todos os supervisores</option>' + supervisoresUnicos.map(s=>`<option value="${s}">${s}</option>`).join('');
+  document.getElementById('cliVenFilter').innerHTML = '<option value="">Todos os vendedores</option>' + vendedoresUnicos.map(v=>`<option value="${v}">${v}</option>`).join('');
+  document.getElementById('venDetFilialFilter').innerHTML = '<option value="">Todas as filiais</option>' + filiaisUnicas.map(f=>`<option value="${f}">Filial ${f}</option>`).join('');
+  document.getElementById('venDetSupFilter').innerHTML = '<option value="">Todos os supervisores</option>' + supervisoresUnicos.map(s=>`<option value="${s}">${s}</option>`).join('');
+}
+
+function renderAllDetailed(){
+  renderKpisDetalhado();
+  renderAging();
+  renderPortador();
+  renderFilialDet();
+  renderPecld();
+  renderTableDet('cli');
+  renderTableDet('venDet');
+  renderTree();
+}
+
+function renderKpisDetalhado(){
+  const totalSaldoCorrido = titulos.reduce((a,t)=>a+t.saldoCorrido,0);
+  const totalJuros = titulos.reduce((a,t)=>a+t.juros,0);
+  const qtdTitulos = titulos.length;
+  const qtdClientes = clientes.length;
+  const titulosSerasa = titulos.filter(t=>isSerasaIncluido(t.serasa)).length;
+  const pctSerasa = qtdTitulos>0 ? (titulosSerasa/qtdTitulos*100) : 0;
+
+  document.getElementById('kpiSaldoCorrido').textContent = fmtBRL(titulos.reduce((a,t)=>a+t.saldo,0));
+  document.getElementById('kpiJuros').textContent = fmtBRL(totalJuros);
+  document.getElementById('kpiQtdTitulos').textContent = qtdTitulos;
+  document.getElementById('kpiQtdClientes').textContent = qtdClientes;
+  document.getElementById('kpiSerasaPerc').textContent = fmtPct(pctSerasa);
+  document.getElementById('kpiSaldoCorridoSub').textContent = 'saldo + juros em aberto';
+  document.getElementById('kpiJurosSub').textContent = 'acumulados nos títulos';
+  document.getElementById('kpiQtdTitulosSub').textContent = 'notas/parcelas em aberto';
+  document.getElementById('kpiQtdClientesSub').textContent = 'CNPJs únicos';
+  document.getElementById('kpiSerasaSub').textContent = titulosSerasa + ' título(s) no Serasa';
+  setTimeout(()=>{ fitKpiValue('kpiSaldoCorrido'); fitKpiValue('kpiJuros'); }, 0);
+
+  const card = document.getElementById('kpiSerasaCard');
+  card.className = 'kpi-card' + (pctSerasa>=15?' red':'');
+}
+
+function renderAging(){
+  const buckets = [
+    {label:'0–30 dias', min:0, max:30, color:'var(--green-deep)'},
+    {label:'31–60 dias', min:31, max:60, color:'#E8A800'},
+    {label:'61–90 dias', min:61, max:90, color:'#E8761A'},
+    {label:'90+ dias', min:91, max:Infinity, color:'var(--danger)'}
+  ];
+  const totalSaldo = titulos.reduce((a,t)=>a+t.saldo,0);
+  const container = document.getElementById('agingList');
+  container.innerHTML = buckets.map(b=>{
+    const subset = titulos.filter(t=>t.diasAtraso>=b.min && t.diasAtraso<=b.max);
+    const saldo = subset.reduce((a,t)=>a+t.saldo,0);
+    const pctDoTotal = totalSaldo>0 ? (saldo/totalSaldo*100) : 0;
+    return `<div class="filial-item">
+      <div class="fi-top">
+        <span class="fi-name">${b.label}</span>
+        <span class="fi-pct pct-badge" style="background:${b.color};color:#fff;">${subset.length} títulos</span>
+      </div>
+      <div class="fi-fat">${fmtBRL(saldo)} em saldo</div>
+      <div class="fi-track"><div class="fi-fill" style="width:${pctDoTotal}%;background:${b.color};"></div></div>
+    </div>`;
+  }).join('');
+}
+
+function renderPortador(){
+  const map = {};
+  titulos.forEach(t=>{
+    const key = t.portador || '(Sem portador)';
+    if(!map[key]) map[key] = {qtdTitulos:0, saldo:0};
+    map[key].qtdTitulos += 1;
+    map[key].saldo += t.saldo;
+  });
+  const list = Object.entries(map).map(([portador, v])=>({portador, ...v}));
+  list.sort((a,b)=>b.saldo-a.saldo);
+  const totalSaldo = titulos.reduce((a,t)=>a+t.saldo,0);
+  const cores = ['var(--purple)','var(--purple-soft)','var(--green-deep)','#E8A800','#E8761A','var(--danger)'];
+  const container = document.getElementById('portadorList');
+  container.innerHTML = list.map((p,i)=>{
+    const pctDoTotal = totalSaldo>0 ? (p.saldo/totalSaldo*100) : 0;
+    const cor = cores[i % cores.length];
+    return `<div class="filial-item">
+      <div class="fi-top">
+        <span class="fi-name">${escapeHtml(p.portador)}</span>
+        <span class="fi-pct pct-badge" style="background:${cor};color:#fff;">${p.qtdTitulos} títulos</span>
+      </div>
+      <div class="fi-fat">${fmtBRL(p.saldo)} em saldo</div>
+      <div class="fi-track"><div class="fi-fill" style="width:${pctDoTotal}%;background:${cor};"></div></div>
+    </div>`;
+  }).join('') || '<p style="color:var(--ink-soft);font-size:13px;">Nenhum dado de portador encontrado.</p>';
+}
+
+function renderFilialDet(){
+  const map = {};
+  titulos.forEach(t=>{
+    const key = t.filial || '(Sem filial)';
+    if(!map[key]) map[key] = {qtdTitulos:0, valor:0, saldo:0, juros:0, saldoCorrido:0};
+    map[key].qtdTitulos += 1;
+    map[key].valor += t.valor;
+    map[key].saldo += t.saldo;
+    map[key].juros += t.juros;
+    map[key].saldoCorrido += t.saldoCorrido;
+  });
+  const list = Object.entries(map).map(([filial, v])=>({filial, ...v}));
+  list.sort((a,b)=>b.saldoCorrido-a.saldoCorrido);
+  const tbody = document.getElementById('filialDetTbody');
+  tbody.innerHTML = list.map(f=>`<tr>
+    <td>${escapeHtml(f.filial)}</td>
+    <td class="num">${f.qtdTitulos}</td>
+    <td class="num">${fmtBRL(f.valor)}</td>
+    <td class="num">${fmtBRL(f.saldo)}</td>
+    <td class="num">${fmtBRL(f.juros)}</td>
+    <td class="num">${fmtBRL(f.saldoCorrido)}</td>
+  </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--ink-soft);padding:24px;">Nenhum dado encontrado.</td></tr>';
+  setTimeout(()=>fitNumberCells('filialDetTable'), 0);
+}
+
+function getFilteredCli(){
+  const search = document.getElementById('cliSearch').value.trim().toLowerCase();
+  const filial = document.getElementById('cliFilialFilter').value;
+  const sup = document.getElementById('cliSupFilter').value;
+  const ven = document.getElementById('cliVenFilter').value;
+  const serasa = document.getElementById('cliSerasaFilter').value;
+  let rows = clientes.filter(c=>{
+    if(search && !((c.razao||c.nomeCliente).toLowerCase().includes(search) || c.cnpj.toLowerCase().includes(search))) return false;
+    if(filial && c.filial !== filial) return false;
+    if(sup && c.supervisor !== sup) return false;
+    if(ven && c.nomeVen !== ven) return false;
+    if(serasa==='serasa' && !c.serasaFlag) return false;
+    if(serasa==='nada' && c.serasaFlag) return false;
+    return true;
+  });
+  const {key,dir} = sortStateDet.cli;
+  rows.sort((a,b)=>{
+    let va=a[key], vb=b[key];
+    if(typeof va === 'string') return va.localeCompare(vb)*dir;
+    return numCompare(va,vb)*dir;
+  });
+  return rows;
+}
+
+const PECLD_FAIXAS = [
+  {label:'A vencer',    min:0,  max:0,        taxa:0.005, cor:'#0B7A3E'},
+  {label:'1–30 dias',   min:1,  max:30,       taxa:0.02,  cor:'#9A6700'},
+  {label:'31–90 dias',  min:31, max:90,       taxa:0.10,  cor:'#E8761A'},
+  {label:'Acima de 90', min:91, max:Infinity, taxa:0.50,  cor:'#A8233A'},
+];
+
+function calcPecld(){
+  const faixas = PECLD_FAIXAS.map(f=>({...f, qtd:0, saldo:0}));
+  titulos.forEach(t=>{
+    const d = t.diasAtraso;
+    const f = faixas.find(f=>d>=f.min && d<=f.max);
+    if(f){ f.qtd++; f.saldo+=t.saldo; }
+  });
+  faixas.forEach(f=>{ f.provisao = f.saldo * f.taxa; });
+  return faixas;
+}
+
+function renderPecld(){
+  const faixas = calcPecld();
+  const totalSaldo = faixas.reduce((a,f)=>a+f.saldo,0);
+  const totalProvisao = faixas.reduce((a,f)=>a+f.provisao,0);
+  const totalQtd = faixas.reduce((a,f)=>a+f.qtd,0);
+  const maiorFaixa = faixas.reduce((a,f)=>f.provisao>a.provisao?f:a, faixas[0]);
+  const pctPecld = totalSaldo>0 ? (totalProvisao/totalSaldo*100) : 0;
+
+  document.getElementById('pecldTotal').textContent = fmtBRL(totalProvisao);
+  document.getElementById('pecldTotalSub').textContent = totalQtd+' títulos analisados';
+  document.getElementById('pecldPerc').textContent = fmtPct(pctPecld);
+  document.getElementById('pecldMaiorRisco').textContent = maiorFaixa.label;
+  document.getElementById('pecldMaiorRiscoSub').textContent = fmtBRL(maiorFaixa.provisao)+' ('+fmtPct(totalProvisao>0?maiorFaixa.provisao/totalProvisao*100:0)+' da provisão)';
+
+  setTimeout(()=>{ fitKpiValue('pecldTotal'); fitKpiValue('pecldPerc'); }, 0);
+
+  const tbody = document.getElementById('pecldTbody');
+  tbody.innerHTML = faixas.map(f=>{
+    const pctDaTotal = totalProvisao>0 ? (f.provisao/totalProvisao*100) : 0;
+    return `<tr>
+      <td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${f.cor};margin-right:8px;"></span>${f.label}</td>
+      <td class="num">${f.qtd.toLocaleString('pt-BR')}</td>
+      <td class="num">${fmtBRL(f.saldo)}</td>
+      <td class="num" style="font-family:var(--mono);font-weight:700;color:${f.cor};">${(f.taxa*100).toFixed(1)}%</td>
+      <td class="num" style="font-weight:700;">${fmtBRL(f.provisao)}</td>
+      <td class="num">${fmtPct(pctDaTotal)}</td>
+    </tr>`;
+  }).join('') + `<tr style="background:#FAF8FC;font-weight:700;border-top:2px solid var(--line);">
+    <td>Total</td>
+    <td class="num">${totalQtd.toLocaleString('pt-BR')}</td>
+    <td class="num">${fmtBRL(totalSaldo)}</td>
+    <td class="num">—</td>
+    <td class="num" style="color:var(--danger);">${fmtBRL(totalProvisao)}</td>
+    <td class="num">100,00%</td>
+  </tr>`;
+  setTimeout(()=>fitNumberCells('pecldTable'), 0);
+}
+
+function getFilteredCli(){
+  const search = document.getElementById('cliSearch').value.trim().toLowerCase();
+  const filial = document.getElementById('cliFilialFilter').value;
+  const sup = document.getElementById('cliSupFilter').value;
+  const ven = document.getElementById('cliVenFilter').value;
+  const serasa = document.getElementById('cliSerasaFilter').value;
+  let rows = clientes.filter(c=>{
+    if(search && !((c.razao||c.nomeCliente).toLowerCase().includes(search) || c.cnpj.toLowerCase().includes(search))) return false;
+    if(filial && c.filial !== filial) return false;
+    if(sup && c.supervisor !== sup) return false;
+    if(ven && c.nomeVen !== ven) return false;
+    if(serasa==='serasa' && !c.serasaFlag) return false;
+    if(serasa==='nada' && c.serasaFlag) return false;
+    return true;
+  });
+  const {key,dir} = sortStateDet.cli;
+  rows.sort((a,b)=>{
+    let va=a[key], vb=b[key];
+    if(typeof va === 'string') return va.localeCompare(vb)*dir;
+    return numCompare(va,vb)*dir;
+  });
+  return rows;
+}
+
+function getFilteredVenDet(){
+  const search = document.getElementById('venDetSearch').value.trim().toLowerCase();
+  const supFilter = document.getElementById('venDetSupFilter').value;
+  const filialFilter = document.getElementById('venDetFilialFilter').value;
+  let rows = vendedoresDet.filter(v=>{
+    if(search && !(v.nomeVen.toLowerCase().includes(search) || v.codVen.toLowerCase().includes(search))) return false;
+    if(supFilter && v.supervisor !== supFilter) return false;
+    if(filialFilter && v.filial !== filialFilter) return false;
+    return true;
+  });
+  const {key,dir} = sortStateDet.venDet;
+  rows.sort((a,b)=>{
+    let va=a[key], vb=b[key];
+    if(typeof va === 'string') return va.localeCompare(vb)*dir;
+    return numCompare(va,vb)*dir;
+  });
+  return rows;
+}
+
+function renderTableDet(type){
+  if(type==='cli'){
+    const rows = getFilteredCli();
+    const tbody = document.getElementById('cliTbody');
+    tbody.innerHTML = rows.map(c=>`<tr>
+      <td>${c.cnpj}</td><td>${c.razao||c.nomeCliente}</td><td>${c.supervisor||'—'}</td><td>${c.filial}</td><td>${c.nomeVen}</td>
+      <td class="num">${c.qtdTitulos}</td><td class="num">${fmtBRL(c.valor)}</td><td class="num">${fmtBRL(c.saldo)}</td>
+      <td class="num">${fmtBRL(c.juros)}</td><td class="num">${fmtBRL(c.saldoCorrido)}</td>
+      <td class="num">${c.maxAtraso}</td>
+      <td>${c.portador||'—'}</td>
+      <td><span class="pct-badge ${c.serasaFlag?'badge-serasa':'badge-ok'}">${c.serasaLabel}</span></td>
+    </tr>`).join('') || '<tr><td colspan="13" style="text-align:center;color:var(--ink-soft);padding:24px;">Nenhum resultado encontrado para os filtros aplicados.</td></tr>';
+    document.getElementById('cliMeta').textContent = `${rows.length} de ${clientes.length} clientes exibidos`;
+    setTimeout(()=>fitNumberCells('cliTable'), 0);
+  } else {
+    const rows = getFilteredVenDet();
+    const tbody = document.getElementById('venDetTbody');
+    tbody.innerHTML = rows.map(v=>`<tr>
+      <td>${v.codVen}</td><td>${v.nomeVen}</td><td>${v.supervisor}</td><td>${v.filial}</td>
+      <td class="num">${v.qtdTitulos}</td><td class="num">${v.qtdClientes}</td>
+      <td class="num">${fmtBRL(v.valor)}</td><td class="num">${fmtBRL(v.saldo)}</td>
+      <td class="num">${fmtBRL(v.juros)}</td><td class="num">${fmtBRL(v.saldoCorrido)}</td><td class="num">${v.maxAtraso}</td>
+    </tr>`).join('') || '<tr><td colspan="11" style="text-align:center;color:var(--ink-soft);padding:24px;">Nenhum resultado encontrado para os filtros aplicados.</td></tr>';
+    document.getElementById('venDetMeta').textContent = `${rows.length} de ${vendedoresDet.length} vendedores exibidos`;
+    setTimeout(()=>fitNumberCells('venDetTable'), 0);
+  }
+}
+
+document.querySelectorAll('#cliTable thead th').forEach(th=>{
+  th.addEventListener('click', ()=>{
+    const key = th.dataset.key;
+    if(sortStateDet.cli.key===key) sortStateDet.cli.dir *= -1;
+    else { sortStateDet.cli.key = key; sortStateDet.cli.dir = 1; }
+    renderTableDet('cli');
+  });
+});
+document.querySelectorAll('#venDetTable thead th').forEach(th=>{
+  th.addEventListener('click', ()=>{
+    const key = th.dataset.key;
+    if(sortStateDet.venDet.key===key) sortStateDet.venDet.dir *= -1;
+    else { sortStateDet.venDet.key = key; sortStateDet.venDet.dir = 1; }
+    renderTableDet('venDet');
+  });
+});
+
+function updateSupFilterByFilial(){
+  const filialSel = document.getElementById('cliFilialFilter').value;
+  const supSel = document.getElementById('cliSupFilter');
+  const supAtual = supSel.value;
+  const supervisoresFiltrados = filialSel
+    ? [...new Set(titulos.filter(t=>t.filial===filialSel).map(t=>t.nomeSup))].filter(Boolean).sort((a,b)=>a.localeCompare(b))
+    : [...new Set(titulos.map(t=>t.nomeSup))].filter(Boolean).sort((a,b)=>a.localeCompare(b));
+  supSel.innerHTML = '<option value="">Todos os supervisores</option>' + supervisoresFiltrados.map(s=>`<option value="${s}">${s}</option>`).join('');
+  supSel.value = supervisoresFiltrados.includes(supAtual) ? supAtual : '';
+}
+
+function updateVenFilterBySup(){
+  const supSel = document.getElementById('cliSupFilter').value;
+  const filialSel = document.getElementById('cliFilialFilter').value;
+  const venSel = document.getElementById('cliVenFilter');
+  const venAtual = venSel.value;
+  const vendedoresFiltrados = (supSel || filialSel)
+    ? [...new Set(titulos.filter(t=>(!supSel||t.nomeSup===supSel)&&(!filialSel||t.filial===filialSel)).map(t=>t.nomeVen))].filter(Boolean).sort((a,b)=>a.localeCompare(b))
+    : [...new Set(titulos.map(t=>t.nomeVen))].filter(Boolean).sort((a,b)=>a.localeCompare(b));
+  venSel.innerHTML = '<option value="">Todos os vendedores</option>' + vendedoresFiltrados.map(v=>`<option value="${v}">${v}</option>`).join('');
+  venSel.value = vendedoresFiltrados.includes(venAtual) ? venAtual : '';
+}
+
+['cliSearch','cliVenFilter','cliSerasaFilter'].forEach(id=>{
+  const el = document.getElementById(id);
+  el.addEventListener('input', ()=>renderTableDet('cli'));
+  el.addEventListener('change', ()=>renderTableDet('cli'));
+});
+const cliFilialEl = document.getElementById('cliFilialFilter');
+cliFilialEl.addEventListener('change', ()=>{ updateSupFilterByFilial(); updateVenFilterBySup(); renderTableDet('cli'); });
+const cliSupEl = document.getElementById('cliSupFilter');
+cliSupEl.addEventListener('change', ()=>{ updateVenFilterBySup(); renderTableDet('cli'); });
+
+['venDetSearch','venDetSupFilter','venDetFilialFilter'].forEach(id=>{
+  const el = document.getElementById(id);
+  el.addEventListener('input', ()=>renderTableDet('venDet'));
+  el.addEventListener('change', ()=>renderTableDet('venDet'));
+});
+
+function atrasoClass(dias){
+  if(dias <= 30) return 'pct-low';
+  if(dias <= 60) return 'pct-mid';
+  if(dias <= 90) return 'pct-high';
+  return 'pct-nofat';
+}
+
+function escapeHtml(str){
+  return String(str??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function showToast(msg){
+  let toast = document.getElementById('copyToast');
+  if(!toast){
+    toast = document.createElement('div');
+    toast.id = 'copyToast';
+    toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--purple-deep);color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:0 6px 24px rgba(0,0,0,0.25);z-index:9999;opacity:0;transition:opacity .2s, transform .2s;border:1px solid rgba(0,255,119,0.4);';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.opacity = '1';
+  toast.style.transform = 'translateX(-50%) translateY(0)';
+  clearTimeout(toast._hideTimer);
+  toast._hideTimer = setTimeout(()=>{
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(-50%) translateY(20px)';
+  }, 2000);
+}
+
+function copyTituloClipboard(btn){
+  const text = btn.getAttribute('data-copy');
+  const original = btn.textContent;
+  const done = ()=>{
+    btn.textContent='✅';
+    setTimeout(()=>{ btn.textContent=original; }, 1200);
+    showToast('Dados copiados para a área de transferência!');
+  };
+  const fail = ()=>{ alert('Não foi possível copiar automaticamente. Texto: \n\n'+text); };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done).catch(fail);
+  } else {
+    try{
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      done();
+    }catch(e){ fail(); }
+  }
+}
+
+function buildTreeData(){
+  const tree = {};
+  titulos.forEach(t=>{
+    const supKey = t.nomeSup || '(Sem supervisor)';
+    const venKey = t.codVen ? `${t.codVen} - ${t.nomeVen||'(Sem vendedor)'}` : (t.nomeVen||'(Sem vendedor)');
+    const cliKey = (t.cnpj||'') + '|' + (t.loja||'') + '|' + (t.razao||t.nomeCliente||'(Sem cliente)');
+    if(!tree[supKey]) tree[supKey] = {saldoCorrido:0, vendedores:{}};
+    tree[supKey].saldoCorrido += t.saldo;
+    const supNode = tree[supKey];
+    if(!supNode.vendedores[venKey]) supNode.vendedores[venKey] = {saldoCorrido:0, clientes:{}};
+    supNode.vendedores[venKey].saldoCorrido += t.saldo;
+    const venNode = supNode.vendedores[venKey];
+    if(!venNode.clientes[cliKey]) venNode.clientes[cliKey] = {nome:t.razao||t.nomeCliente||'(Sem cliente)', cnpj:t.cnpj, saldo:0, saldoCorrido:0, titulos:[]};
+    venNode.clientes[cliKey].saldo += t.saldo;
+    venNode.clientes[cliKey].saldoCorrido += t.saldo;
+    venNode.clientes[cliKey].titulos.push(t);
+  });
+  return tree;
+}
+
+function renderTitulosCliente(detailsEl, titulosArr){
+  if(detailsEl.dataset.loaded) return;
+  detailsEl.dataset.loaded = '1';
+  const tbody = detailsEl.querySelector('tbody');
+  if(!tbody) return;
+  tbody.innerHTML = titulosArr.slice().sort((a,b)=>{
+    const numCmp = (a.numero||'').localeCompare(b.numero||'', undefined, {numeric:true});
+    if(numCmp !== 0) return numCmp;
+    const parcCmp = (a.parcela||'').localeCompare(b.parcela||'', undefined, {numeric:true});
+    if(parcCmp !== 0) return parcCmp;
+    const dA = a.vencimentoDate ? a.vencimentoDate.getTime() : 0;
+    const dB = b.vencimentoDate ? b.vencimentoDate.getTime() : 0;
+    return dA - dB;
+  }).map(t=>{
+    const copyText = `Título: ${t.numero}${t.parcela?(' | Parcela: '+t.parcela):''} | Valor: ${fmtBRL(t.valor)} | Vencimento: ${t.vencimento||'—'}`;
+    return `
+    <tr>
+      <td>${escapeHtml(t.tipo)} ${escapeHtml(t.numero)}${t.parcela?(' / parc. '+escapeHtml(t.parcela)):''}</td>
+      <td class="num">${fmtBRL(t.valor)}</td>
+      <td class="num">${fmtBRL(t.saldo)}</td>
+      <td>${escapeHtml(t.vencimento)||'—'}</td>
+      <td>${escapeHtml(t.portador)||'—'}</td>
+      <td style="text-align:right;font-family:var(--mono);"><span class="atraso-badge ${atrasoClass(t.diasAtraso)}">${t.diasAtraso} dias</span></td>
+      <td style="text-align:center;"><button class="btn-copy" onclick="copyTituloClipboard(this)" data-copy="${escapeHtml(copyText)}" title="Copiar dados do título">📋</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderTree(){
+  const search = document.getElementById('treeSearch').value.trim().toLowerCase();
+  const tree = buildTreeData();
+  const container = document.getElementById('treeContainer');
+  let html = '';
+
+  Object.keys(tree).sort((a,b)=>tree[b].saldoCorrido-tree[a].saldoCorrido).forEach(supKey=>{
+    const supNode = tree[supKey];
+    const venKeys = Object.keys(supNode.vendedores);
+    let supMatches = !search || supKey.toLowerCase().includes(search);
+    let venHtml = '';
+    let anyVenMatch = false;
+
+    venKeys.sort((a,b)=>supNode.vendedores[b].saldoCorrido-supNode.vendedores[a].saldoCorrido).forEach(venKey=>{
+      const venNode = supNode.vendedores[venKey];
+      const cliKeys = Object.keys(venNode.clientes);
+      let venMatches = supMatches || (!search || venKey.toLowerCase().includes(search));
+      let cliHtml = '';
+      let anyCliMatch = false;
+
+      cliKeys.sort((a,b)=>venNode.clientes[b].saldoCorrido-venNode.clientes[a].saldoCorrido).forEach(cliKey=>{
+        const cli = venNode.clientes[cliKey];
+        const cliMatches = venMatches || (!search || cli.nome.toLowerCase().includes(search) || (cli.cnpj||'').toLowerCase().includes(search));
+        if(!cliMatches) return;
+        anyCliMatch = true;
+
+        const cliId = 'cli_' + Math.random().toString(36).slice(2);
+
+        cliHtml += `
+          <details class="tree-node lvl-cli" id="${cliId}" data-cli-key="${escapeHtml(cliKey)}">
+            <summary>
+              <span class="tn-label">👤 ${escapeHtml(cli.nome)}${cli.cnpj?(' <span style="font-weight:400;color:var(--ink-soft);">('+escapeHtml(cli.cnpj)+')</span>'):''}</span>
+              <span class="tn-meta">${cli.titulos.length} título(s) · ${fmtBRL(cli.saldo)}</span>
+            </summary>
+            <div class="tree-children">
+              <table class="tree-titulos">
+                <colgroup>
+                  <col class="col-titulo"><col class="col-valor"><col class="col-saldo">
+                  <col class="col-venc"><col class="col-port"><col class="col-atraso"><col class="col-copy">
+                </colgroup>
+                <thead><tr>
+                  <th>Título</th>
+                  <th style="text-align:right;">Valor</th>
+                  <th style="text-align:right;">Saldo</th>
+                  <th>Vencimento</th>
+                  <th>Portador</th>
+                  <th style="text-align:right;">Dias de Atraso</th>
+                  <th></th>
+                </tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </details>`;
+      });
+
+      if(!anyCliMatch) return;
+      anyVenMatch = true;
+      venHtml += `
+        <details class="tree-node lvl-ven">
+          <summary>
+            <span class="tn-label">🧑‍💼 ${escapeHtml(venKey)}</span>
+            <span class="tn-meta">${cliKeys.length} cliente(s) · ${fmtBRL(venNode.saldoCorrido)}</span>
+          </summary>
+          <div class="tree-children">${cliHtml}</div>
+        </details>`;
+    });
+
+    if(!anyVenMatch) return;
+    html += `
+      <details class="tree-node lvl-sup">
+        <summary>
+          <span class="tn-label">🧭 ${escapeHtml(supKey)}</span>
+          <span class="tn-meta">${venKeys.length} vendedor(es) · ${fmtBRL(supNode.saldoCorrido)}</span>
+        </summary>
+        <div class="tree-children">${venHtml}</div>
+      </details>`;
+  });
+
+  container.innerHTML = html || '<p style="text-align:center;color:var(--ink-soft);padding:24px;">Nenhum resultado encontrado para o filtro aplicado.</p>';
+
+  // Vincular lazy loading: carregar títulos só ao abrir o details do cliente
+  const treeData = tree;
+  container.querySelectorAll('details.lvl-cli').forEach(det=>{
+    det.addEventListener('toggle', function(){
+      if(!this.open) return;
+      // Encontrar os títulos desse cliente percorrendo a árvore
+      for(const supKey of Object.keys(treeData)){
+        for(const venKey of Object.keys(treeData[supKey].vendedores)){
+          const clientes = treeData[supKey].vendedores[venKey].clientes;
+          const cliKey = this.dataset.cliKey;
+          if(clientes[cliKey]){
+            renderTitulosCliente(this, clientes[cliKey].titulos);
+            return;
+          }
+        }
+      }
+    }, {once: false});
+  });
+}
+
+function toggleAllTree(open){
+  document.querySelectorAll('#treeContainer details').forEach(d=>{ d.open = open; });
+}
+
+document.getElementById('treeSearch').addEventListener('input', renderTree);
+
+function exportTable(type, format){
+  if(type === 'pecld'){
+    const faixas = calcPecld();
+    const totalSaldo = faixas.reduce((a,f)=>a+f.saldo,0);
+    const totalProvisao = faixas.reduce((a,f)=>a+f.provisao,0);
+    const totalQtd = faixas.reduce((a,f)=>a+f.qtd,0);
+    if(format === 'xlsx'){
+      const data = faixas.map(f=>({
+        'Faixa': f.label, 'Qtd. Títulos': f.qtd, 'Saldo Base': f.saldo,
+        'Taxa (%)': f.taxa*100, 'Provisão': f.provisao,
+        '% da Provisão Total': totalProvisao>0 ? Number((f.provisao/totalProvisao*100).toFixed(2)) : 0
+      }));
+      data.push({'Faixa':'Total','Qtd. Títulos':totalQtd,'Saldo Base':totalSaldo,'Taxa (%)':'—','Provisão':totalProvisao,'% da Provisão Total':100});
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'PECLD');
+      XLSX.writeFile(wb, 'pecld_inadimplencia.xlsx');
+    } else {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({orientation:'landscape', unit:'pt'});
+      doc.setFontSize(14); doc.setTextColor(72,14,101);
+      doc.text('PECLD — Perda Estimada com Créditos de Liquidação Duvidosa', 40, 36);
+      doc.setFontSize(9); doc.setTextColor(100,100,100);
+      doc.text('Gerado em ' + new Date().toLocaleString('pt-BR'), 40, 52);
+      const pctPecld = totalSaldo>0 ? (totalProvisao/totalSaldo*100) : 0;
+      doc.setFontSize(10); doc.setTextColor(72,14,101);
+      doc.text(`Provisão Total: ${fmtBRL(totalProvisao)}`, 40, 68);
+      doc.setTextColor(224,68,91);
+      doc.text(`% PECLD sobre Saldo: ${fmtPct(pctPecld)}`, 280, 68);
+      doc.setTextColor(100,100,100);
+      doc.autoTable({
+        head:[['Faixa','Qtd. Títulos','Saldo Base','Taxa','Provisão','% da Provisão']],
+        body:[...faixas.map(f=>[f.label, f.qtd.toLocaleString('pt-BR'), fmtBRL(f.saldo), (f.taxa*100).toFixed(1)+'%', fmtBRL(f.provisao), fmtPct(totalProvisao>0?f.provisao/totalProvisao*100:0)]),
+              ['Total', totalQtd.toLocaleString('pt-BR'), fmtBRL(totalSaldo), '—', fmtBRL(totalProvisao), '100,00%']],
+        startY:84,
+        headStyles:{fillColor:[72,14,101], textColor:255, fontSize:9},
+        bodyStyles:{fontSize:9},
+        alternateRowStyles:{fillColor:[247,244,251]},
+        margin:{left:40,right:40}
+      });
+      doc.save('pecld_inadimplencia.pdf');
+    }
+    return;
+  }
+
+  const typeMap = {sup:getFilteredSup, ven:getFilteredVen, cli:getFilteredCli, venDet:getFilteredVenDet};
+  const rows = typeMap[type]();
+  if(rows.length===0){ alert('Não há dados para exportar com os filtros atuais.'); return; }
+
+  const fileNames = {sup:'supervisores_inadimplencia', ven:'vendedores_inadimplencia', cli:'clientes_inadimplencia', venDet:'vendedores_detalhado_inadimplencia'};
+  const titles = {sup:'Relatório de Inadimplência — Supervisores', ven:'Relatório de Inadimplência — Vendedores', cli:'Relatório de Inadimplência — Clientes', venDet:'Relatório de Inadimplência — Vendedores (Detalhado)'};
+
+  if(format==='xlsx'){
+    let data;
+    if(type==='sup'){
+      data = rows.map(s=>({
+        'Código Supervisor': s.codSup, 'Supervisor': s.nomeSup, 'Filial': s.filial,
+        'Faturamento': s.fat, 'Inadimplência': s.inad, '% Inadimplência': s.pct===Infinity ? 'Sem faturamento' : Number(s.pct.toFixed(2))
+      }));
+    } else if(type==='ven'){
+      data = rows.map(v=>({
+        'Código Vendedor': v.codVen, 'Vendedor': v.nomeVen, 'Supervisor': v.supervisor, 'Filial': v.filial,
+        'Faturamento': v.fat, 'Inadimplência': v.inad, '% Inadimplência': v.pct===Infinity ? 'Sem faturamento' : Number(v.pct.toFixed(2))
+      }));
+    } else if(type==='cli'){
+      data = rows.map(c=>({
+        'CNPJ': c.cnpj, 'Cliente': c.razao||c.nomeCliente, 'Supervisor': c.supervisor||'—', 'Filial': c.filial, 'Vendedor': c.nomeVen,
+        'Qtd. Títulos': c.qtdTitulos, 'Valor': c.valor, 'Saldo': c.saldo, 'Juros': c.juros, 'Saldo Corrido': c.saldoCorrido,
+        'Maior Atraso (dias)': c.maxAtraso, 'Portador': c.portador||'—', 'Status Serasa': c.serasaLabel
+      }));
+    } else {
+      data = rows.map(v=>({
+        'Código Vendedor': v.codVen, 'Vendedor': v.nomeVen, 'Supervisor': v.supervisor, 'Filial': v.filial,
+        'Qtd. Títulos': v.qtdTitulos, 'Qtd. Clientes': v.qtdClientes, 'Valor': v.valor, 'Saldo': v.saldo, 'Juros': v.juros, 'Saldo Corrido': v.saldoCorrido, 'Maior Atraso (dias)': v.maxAtraso
+      }));
+    }
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, titles[type].split('—')[1].trim());
+    XLSX.writeFile(wb, fileNames[type]+'.xlsx');
+  } else {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({orientation:'landscape', unit:'pt'});
+    doc.setFontSize(14);
+    doc.setTextColor(72,14,101);
+    doc.text(titles[type], 40, 36);
+    doc.setFontSize(9);
+    doc.setTextColor(100,100,100);
+    doc.text('Gerado em ' + new Date().toLocaleString('pt-BR'), 40, 52);
+
+    doc.setFontSize(10);
+    if(type==='sup' || type==='ven'){
+      const totalFatExp = rows.reduce((a,r)=>a+r.fat,0);
+      const totalInadExp = rows.reduce((a,r)=>a+r.inad,0);
+      const totalPctExp = totalFatExp>0 ? (totalInadExp/totalFatExp*100) : 0;
+      doc.setTextColor(72,14,101);
+      doc.text(`Faturamento Total: ${fmtBRL(totalFatExp)}`, 40, 68);
+      doc.setTextColor(224,68,91);
+      doc.text(`Inadimplência Total: ${fmtBRL(totalInadExp)}`, 280, 68);
+      doc.setTextColor(0,160,80);
+      doc.text(`% Inadimplência: ${fmtPct(totalPctExp)}`, 520, 68);
+    } else {
+      const totalSaldoExp = rows.reduce((a,r)=>a+r.saldoCorrido,0);
+      const totalJurosExp = rows.reduce((a,r)=>a+r.juros,0);
+      doc.setTextColor(72,14,101);
+      doc.text(`Saldo Corrido Total: ${fmtBRL(totalSaldoExp)}`, 40, 68);
+      doc.setTextColor(224,68,91);
+      doc.text(`Juros Total: ${fmtBRL(totalJurosExp)}`, 320, 68);
+    }
+    doc.setTextColor(100,100,100);
+
+    let head, body;
+    if(type==='sup'){
+      head = [['Código','Supervisor','Filial','Faturamento','Inadimplência','% Inadimplência']];
+      body = rows.map(s=>[s.codSup, s.nomeSup, s.filial, fmtBRL(s.fat), fmtBRL(s.inad), fmtPct(s.pct)]);
+    } else if(type==='ven'){
+      head = [['Código','Vendedor','Supervisor','Filial','Faturamento','Inadimplência','% Inadimplência']];
+      body = rows.map(v=>[v.codVen, v.nomeVen, v.supervisor, v.filial, fmtBRL(v.fat), fmtBRL(v.inad), fmtPct(v.pct)]);
+    } else if(type==='cli'){
+      head = [['CNPJ','Cliente','Supervisor','Filial','Vendedor','Qtd. Títulos','Valor','Saldo','Juros','Saldo Corrido','Maior Atraso','Portador','Serasa']];
+      body = rows.map(c=>[c.cnpj, c.razao||c.nomeCliente, c.supervisor||'—', c.filial, c.nomeVen, c.qtdTitulos, fmtBRL(c.valor), fmtBRL(c.saldo), fmtBRL(c.juros), fmtBRL(c.saldoCorrido), c.maxAtraso, c.portador||'—', c.serasaLabel]);
+    } else {
+      head = [['Código','Vendedor','Supervisor','Filial','Qtd. Títulos','Qtd. Clientes','Valor','Saldo','Juros','Saldo Corrido','Maior Atraso']];
+      body = rows.map(v=>[v.codVen, v.nomeVen, v.supervisor, v.filial, v.qtdTitulos, v.qtdClientes, fmtBRL(v.valor), fmtBRL(v.saldo), fmtBRL(v.juros), fmtBRL(v.saldoCorrido), v.maxAtraso]);
+    }
+    doc.autoTable({
+      head, body, startY:84,
+      headStyles:{fillColor:[72,14,101], textColor:255, fontSize:9},
+      bodyStyles:{fontSize:8.5},
+      alternateRowStyles:{fillColor:[247,244,251]},
+      margin:{left:40,right:40}
+    });
+    doc.save(fileNames[type]+'.pdf');
+  }
+}
+</script>
+</body>
+</html>
